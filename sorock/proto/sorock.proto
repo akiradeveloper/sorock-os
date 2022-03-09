@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package sorock;
+
+message ReadReq {
+    string key = 1;
+}
+message ReadRep {
+	bytes data = 1;
+}
+message CreateReq {
+	string key = 1;
+	bytes data = 2;
+}
+message DeleteReq {
+	string key = 1;
+}
+message AddNodeReq {
+	string uri = 1;
+	double cap = 2;
+}
+message RemoveNodeReq {
+	string uri = 1;
+}
+message SendPieceReq {
+	optional bytes data = 1;
+	string key = 2;
+	uint32 index = 3;
+	uint64 version = 4;
+}
+message RequestPieceReq {
+	string key = 1;
+	uint32 index = 2;
+}
+message RequestPieceRep {
+	optional bytes data = 1;
+}
+message RequestAnyPiecesReq {
+	string key = 1;
+}
+message IndexedPiece {
+	uint32 index = 1;
+	bytes data = 2;
+}
+message RequestAnyPiecesRep {
+	repeated IndexedPiece pieces = 1;
+}
+
+service Sorock {
+	rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+	rpc Read (ReadReq) returns (ReadRep);
+	rpc Create (CreateReq) returns (google.protobuf.Empty);
+	rpc Delete (DeleteReq) returns (google.protobuf.Empty);
+	rpc AddNode (AddNodeReq) returns (google.protobuf.Empty);
+	rpc RemoveNode (RemoveNodeReq) returns (google.protobuf.Empty);
+	rpc SendPiece (SendPieceReq) returns (google.protobuf.Empty);
+	rpc RequestPiece (RequestPieceReq) returns (RequestPieceRep);
+	rpc RequestAnyPieces (RequestAnyPiecesReq) returns (RequestAnyPiecesRep);
+}
