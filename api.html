@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - sorock</title>
+        <title>API - sorock</title>
         
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="api.html">API</a></li><li class="chapter-item expanded affix "><a href="math.html">Math</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="api.html" class="active">API</a></li><li class="chapter-item expanded affix "><a href="math.html">Math</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -135,16 +135,34 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
+                        <h1><a class="header" href="#api" id="api">API</a></h1>
+<p>sorock provides only simple APIs.</p>
+<h2><a class="header" href="#createkey-value" id="createkey-value">Create(Key, Value)</a></h2>
+<p>Create a key-value pair in the storage.
+Key shouldn't be reused for any two different values.
+Typically, the key is generated from the value using hash function like SHA1.</p>
+<h2><a class="header" href="#readkey" id="readkey">Read(Key)</a></h2>
+<p>Read the value from the storage.</p>
+<h2><a class="header" href="#deletekey" id="deletekey">Delete(Key)</a></h2>
+<p>Delete the key-value pair.</p>
+<h2><a class="header" href="#addnodeuri-capacity" id="addnodeuri-capacity">AddNode(URI, Capacity)</a></h2>
+<p>Add a node in the cluster.
+Regarding the Capacity, recommendation is setting x if the node has xTB local storage.</p>
+<h2><a class="header" href="#removenodeuri" id="removenodeuri">RemoveNode(URI)</a></h2>
+<p>Remove a node from the cluster.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
+                            <a rel="prev" href="introduction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
 
                         
-                            <a rel="next" href="api.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="math.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -156,9 +174,13 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
+                    <a rel="prev" href="introduction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
 
                 
-                    <a rel="next" href="api.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="math.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 
