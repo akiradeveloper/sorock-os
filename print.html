@@ -86,7 +86,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="api.html">API</a></li><li class="chapter-item expanded affix "><a href="math.html">Math</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><a href="architecture.html">Architecture</a></li><li class="chapter-item expanded affix "><a href="api.html">API</a></li><li class="chapter-item expanded affix "><a href="math.html">Math</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -138,8 +138,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
+<p>TBD</p>
+<h1><a class="header" href="#architecture" id="architecture">Architecture</a></h1>
+<p>Sorock implements the server using <a href="https://github.com/hyperium/tonic">Tonic</a> so
+all external communication is done by gRPC.</p>
+<p>Tonic allows to stack gRPC services in the server.</p>
+<p>Sorock uses Raft consensus algorithm to replicate the cluster change
+because all nodes have to at least eventually see the same cluster state and replication should be quick enough. Some other system uses gossip protocol to disseminate the cluster change but using Raft it will be more quicker.</p>
+<p>Raft service builds the <a href="https://github.com/akiradeveloper/ASURA">ASURA</a> data structure based on cluster changes and then it is passed to Storage service.</p>
+<p>Storage service is responsible for handling user requests but lot of p2p communications are executed in the cluster. When the cluster is changed, it tries to move the erasure-coded pieces to the appropriate nodes and rebuild a piece if it is lost.</p>
+<p><img src="images/arch.png" alt="" /></p>
 <h1><a class="header" href="#api" id="api">API</a></h1>
-<p>sorock provides only simple APIs.</p>
+<p>Sorock provides only simple APIs.</p>
 <h2><a class="header" href="#createkey-value" id="createkey-value">Create(Key, Value)</a></h2>
 <p>Create a key-value pair in the storage.
 Key shouldn't be reused for any two different values.
