@@ -153,17 +153,17 @@ and There is an equal possibility of losing each server.
 If we remove S2 for example and the next placement is S1,S3,S4,S5 we need to move 3 pieces
 (S2-&gt;S3,S3-&gt;S4,S4-&gt;S5). If we remove S4 only one piece is moved.</p>
 <p>The average moves will be</p>
-<p>\[ \frac{1}{N} \sum_{i=1}^{N-1} i = \frac{N-1}{2} \sim N \]</p>
+<p>\[ \frac{1}{N} \sum_{i=1}^{N-1} i = \frac{N-1}{2} \]</p>
 <p>If there are C nodes in the cluster, the possibility of choose either one in N nodes is</p>
 <p>\[ \frac{N}{C} \]</p>
 <p>then the expectation number of moves per key will be</p>
-<p>\[ \frac{N^2}{C} \]</p>
+<p>\[ \frac{N(N-1)}{2C} \]</p>
 <p>Because the possibility that one node out of C nodes went down
 in a certain period
 is proportional to C</p>
 <p>\[ pC \]</p>
 <p>So the expectation number of moves per key per time will be</p>
-<p>\[ pN^2 \]</p>
+<p>\[ \frac{pN(N-1)}{2} \]</p>
 <h2><a class="header" href="#how-many-random-numbers-are-need-to-compute-n-holders" id="how-many-random-numbers-are-need-to-compute-n-holders">How many random numbers are need to compute N holders?</a></h2>
 <p>Suppose all nodes have the same capacity.
 In ASURA, we need 1 random number to choose the first node.
