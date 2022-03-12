@@ -1,22 +1,22 @@
-use crate::*;
+use bytes::Bytes;
+use sorock_core::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-define_client!(PieceStore);
-pub fn spawn(state: State) -> ClientT {
+pub fn spawn(state: State) -> sorock_core::piece_store::ClientT {
     use norpc::runtime::send::*;
     let (tx, rx) = tokio::sync::mpsc::channel(100);
     tokio::spawn(async {
         let svc = App {
             state: Arc::new(state),
         };
-        let service = PieceStoreService::new(svc);
+        let service = sorock_core::piece_store::PieceStoreService::new(svc);
         let server = ServerExecutor::new(rx, service);
         server.serve().await
     });
     let chan = ClientService::new(tx);
-    PieceStoreClient::new(chan)
+    sorock_core::piece_store::PieceStoreClient::new(chan)
 }
 
 #[tokio::test]
@@ -99,7 +99,7 @@ struct App {
     state: Arc<State>,
 }
 #[norpc::async_trait]
-impl PieceStore for App {
+impl piece_store::PieceStore for App {
     async fn get_piece(self, loc: PieceLocator) -> Option<Vec<u8>> {
         let buf = self.state.get_piece(loc).await;
         buf.map(|buf| {

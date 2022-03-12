@@ -3,7 +3,15 @@ use bytes::BytesMut;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[norpc::service]
+trait IOFront {
+    fn create(key: String, value: Bytes);
+    fn read(key: String) -> Bytes;
+    fn sanity_check(key: String) -> usize;
+    fn set_new_cluster(cluster: ClusterMap);
+}
 define_client!(IOFront);
+
 pub fn spawn(peer_out_cli: peer_out::ClientT, state: State) -> ClientT {
     use norpc::runtime::send::*;
     let (tx, rx) = tokio::sync::mpsc::channel(100);
@@ -138,6 +146,53 @@ impl IOFront for App {
         } else {
             panic!("pieces not found: key={}", &key);
         }
+    }
+    async fn sanity_check(self, key: String) -> usize {
+        let cluster = self.state.cluster.read().await.clone();
+        let holders = cluster.compute_holders(key.clone(), N);
+        let mut futs = vec![];
+        for i in 0..N {
+            let holder = &holders[i];
+            match holder {
+                None => {}
+                Some(holder) => {
+                    let mut peer_out_cli = self.peer_out_cli.clone();
+                    let holder = holder.clone();
+                    let loc = PieceLocator {
+                        key: key.clone(),
+                        index: i as u8,
+                    };
+                    let fut = into_safe_future(async move {
+                        let res = peer_out_cli.request_piece(holder, loc).await.unwrap();
+                        match res {
+                            Some(_) => true,
+                            None => false,
+                        }
+                    });
+                    let fut = tokio::time::timeout(std::time::Duration::from_secs(5), fut);
+                    futs.push(fut);
+                }
+            }
+        }
+        let n_should_found = futs.len();
+        let stream = futures::stream::iter(futs);
+        let mut buffered = stream.buffer_unordered(N);
+        let mut n_found = 0;
+        while let Some(rep) = buffered.next().await {
+            if rep.is_err() {
+                continue;
+            }
+            let rep = rep.unwrap();
+            if rep.is_err() {
+                continue;
+            }
+            let rep = rep.unwrap();
+            if rep {
+                n_found += 1;
+            }
+        }
+        let n_lost = n_should_found - n_found;
+        n_lost
     }
     async fn set_new_cluster(self, cluster: ClusterMap) {
         *self.state.cluster.write().await = cluster;

@@ -1,9 +1,15 @@
 use crate::*;
+use cluster_map::Change;
 use futures::FutureExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[norpc::service]
+trait Stabilizer {
+    fn set_new_cluster(cluster: ClusterMap);
+}
 define_client!(Stabilizer);
+
 pub fn spawn(
     piece_store_cli: piece_store::ClientT,
     peer_out_cli: peer_out::ClientT,
@@ -51,7 +57,7 @@ impl Stabilizer for App {
         let old_cluster = cur_cluster.clone();
 
         let this_uri = &self.state.uri;
-        let last_change = compute_last_change(&old_cluster, &new_cluster);
+        let last_change = new_cluster.last_change();
 
         let peer_out_cli = self.peer_out_cli.clone();
         let mut piece_store_cli = self.piece_store_cli.clone();
@@ -68,7 +74,8 @@ impl Stabilizer for App {
             stabilize.stabilize(key)
         });
         let stream = futures::stream::iter(futs);
-        let mut buffered = stream.buffer_unordered(100);
+        let n_par = std::thread::available_parallelism().unwrap().get() * 2;
+        let mut buffered = stream.buffer_unordered(n_par);
         while let Some(_) = buffered.next().await {}
         drop(buffered);
 
@@ -81,33 +88,6 @@ enum Action {
     SelfHeal { from: Uri, loc: PieceLocator },
     MoveOwnership { to: Uri, loc: PieceLocator },
     PseudoMove { to: Uri, loc: PieceLocator },
-}
-
-#[derive(Clone, Debug)]
-enum Change {
-    Add(Uri),
-    Remove(Uri),
-}
-fn compute_last_change(old: &ClusterMap, new: &ClusterMap) -> Change {
-    let mut xx = old.members();
-    let mut yy = new.members();
-    if yy.len() > xx.len() {
-        assert_eq!(yy.len(), xx.len() + 1);
-        for x in xx {
-            yy.remove(&x);
-        }
-        let y = yy.into_iter().last().unwrap();
-        Change::Add(y)
-    } else if xx.len() > yy.len() {
-        assert_eq!(xx.len(), yy.len() + 1);
-        for y in yy {
-            xx.remove(&y);
-        }
-        let x = xx.into_iter().last().unwrap();
-        Change::Remove(x)
-    } else {
-        unreachable!()
-    }
 }
 
 struct Stabilize {

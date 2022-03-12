@@ -1,4 +1,7 @@
-use crate::*;
+use sorock_core::*;
+mod mem_piece_store;
+
+use bytes::Bytes;
 use lol_core::Uri;
 use serial_test::serial;
 use std::collections::HashMap;
@@ -18,22 +21,17 @@ fn uri(port: u16) -> Uri {
 }
 
 async fn start_server(port: u16) {
-    let mut builder = tonic::transport::Server::builder();
     let socket = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port));
     let uri = uri(port);
     let peer_out_cli = peer_out::spawn(peer_out::State::new());
     let io_front_cli = io_front::spawn(peer_out_cli.clone(), io_front::State::new());
-    let piece_store_cli = piece_store::spawn(piece_store::State::new());
+    let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
     let stabilizer_cli = stabilizer::spawn(
         piece_store_cli.clone(),
         peer_out_cli.clone(),
         stabilizer::State::new(uri.clone()),
     );
-    let peer_in_cli = peer_in::spawn(
-        piece_store_cli,
-        peer_out_cli,
-        peer_in::State::new(),
-    );
+    let peer_in_cli = peer_in::spawn(piece_store_cli, peer_out_cli, peer_in::State::new());
     let server = storage_service::Server {
         uri: uri.clone(),
         io_front_cli: io_front_cli.clone(),
@@ -57,6 +55,7 @@ async fn start_server(port: u16) {
     )
     .await;
 
+    let mut builder = tonic::transport::Server::builder();
     builder
         .add_service(svc1)
         .add_service(svc2)
@@ -174,6 +173,15 @@ impl Cluster {
         out.extend_from_slice(&rep.data);
         out
     }
+    async fn sanity_check(&self, key: &str) -> u8 {
+        let chan = self.connect().await;
+        let mut cli = proto_compiled::sorock_client::SorockClient::new(chan);
+        let req = proto_compiled::SanityCheckReq {
+            key: key.to_string(),
+        };
+        let rep = cli.sanity_check(req).await.unwrap().into_inner();
+        rep.n_lost as u8
+    }
     async fn delete(&self, key: &str) {
         unimplemented!()
     }
@@ -247,6 +255,17 @@ async fn test_io_1_node() -> anyhow::Result<()> {
 
 #[tokio::test]
 #[serial]
+async fn test_add_3_node() -> anyhow::Result<()> {
+    let mut cluster = Cluster::new();
+    for _ in 0..3 {
+        let uri = cluster.up_node().await;
+        cluster.add_node(uri, 1.0).await;
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[serial]
 async fn test_add_10_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
@@ -256,7 +275,26 @@ async fn test_add_10_node() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
+#[serial]
+async fn test_add_remove_10_node() -> anyhow::Result<()> {
+    let mut cluster = Cluster::new();
+    for _ in 0..10 {
+        let uri = cluster.up_node().await;
+        cluster.add_node(uri, 1.0).await;
+    }
+    for _ in 0..20 {
+        let remove_uri = cluster.choose_one();
+        cluster.remove_node(remove_uri.clone()).await;
+        cluster.down_node(remove_uri).await;
+
+        let add_uri = cluster.up_node().await;
+        cluster.add_node(add_uri, 1.0).await;
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
 #[serial]
 async fn test_io_10_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
@@ -266,7 +304,7 @@ async fn test_io_10_node() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(100);
+    let dataset = prepare_dataset(1000);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
@@ -274,6 +312,10 @@ async fn test_io_10_node() -> anyhow::Result<()> {
     for (k, v) in &dataset {
         let read = cluster.read(k).await;
         assert_eq!(&read, v);
+    }
+    for (k, _) in &dataset {
+        let n_lost = cluster.sanity_check(k).await;
+        assert_eq!(n_lost, 0);
     }
 
     Ok(())
@@ -285,19 +327,52 @@ async fn text_expand_once() {
     let mut cluster = Cluster::new();
     let uri = cluster.up_node().await;
     cluster.add_node(uri, 1.0).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(1);
+    let dataset = prepare_dataset(200);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
+    }
+
+    let uri = cluster.up_node().await;
+    cluster.add_node(uri, 1.0).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    eprintln!("stabilized.");
+
+    for (k, _) in &dataset {
+        let n_lost = cluster.sanity_check(k).await;
+        assert_eq!(n_lost, 0);
     }
     for (k, v) in &dataset {
         let read = cluster.read(k).await;
         assert_eq!(&read, v);
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[serial]
+async fn text_expand_once_10_node() {
+    let mut cluster = Cluster::new();
+    for _ in 0..10 {
+        let uri = cluster.up_node().await;
+        cluster.add_node(uri, 1.0).await;
+    }
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let dataset = prepare_dataset(200);
+    for (k, v) in &dataset {
+        cluster.create(k, v).await;
+    }
 
     let uri = cluster.up_node().await;
     cluster.add_node(uri, 1.0).await;
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    eprintln!("stabilized.");
+
+    for (k, _) in &dataset {
+        let n_lost = cluster.sanity_check(k).await;
+        assert_eq!(n_lost, 0);
+    }
     for (k, v) in &dataset {
         let read = cluster.read(k).await;
         assert_eq!(&read, v);
@@ -314,19 +389,21 @@ async fn test_shrink_once() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(100);
+    let dataset = prepare_dataset(200);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
-    }
-    for (k, v) in &dataset {
-        let read = cluster.read(k).await;
-        assert_eq!(&read, v);
     }
 
     let uri = cluster.choose_one();
     cluster.remove_node(uri.clone()).await;
     cluster.down_node(uri).await;
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    eprintln!("stabilized.");
+
+    for (k, _) in &dataset {
+        let n_lost = cluster.sanity_check(k).await;
+        assert_eq!(n_lost, 0);
+    }
     for (k, v) in &dataset {
         let read = cluster.read(k).await;
         assert_eq!(&read, v);
@@ -379,7 +456,7 @@ async fn test_shrinking_cluster() -> anyhow::Result<()> {
         cluster.create(k, v).await;
     }
 
-    for _ in 0..6 {
+    for _ in 0..7 {
         for (k, v) in &dataset {
             let read = cluster.read(k).await;
             assert_eq!(&read, v);
@@ -405,7 +482,7 @@ async fn test_changing_cluster() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(10);
+    let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }

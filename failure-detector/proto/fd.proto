@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package fd;
+
+message Ping1Req {
+}
+
+message Ping2Req {
+	string suspect_uri = 1;
+}
+message Ping2Rep {
+	bool ok = 1;
+}
+
+service Fd {
+	rpc ping1(Ping1Req) returns (google.protobuf.Empty);
+	rpc ping2(Ping2Req) returns (Ping2Rep);
+}

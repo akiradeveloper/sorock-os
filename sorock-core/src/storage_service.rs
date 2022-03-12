@@ -5,7 +5,7 @@ mod proto_compiled {
 use proto_compiled::{
     sorock_server::Sorock, AddNodeReq, CreateReq, DeleteReq, IndexedPiece, ReadRep, ReadReq,
     RemoveNodeReq, RequestAnyPiecesRep, RequestAnyPiecesReq, RequestPieceRep, RequestPieceReq,
-    SendPieceReq,
+    SanityCheckRep, SanityCheckReq, SendPieceReq,
 };
 
 pub struct Server {
@@ -24,6 +24,19 @@ impl Sorock for Server {
         let key = req.key;
         let res = cli.read(key).await.unwrap();
         let rep = ReadRep { data: res };
+        Ok(tonic::Response::new(rep))
+    }
+    async fn sanity_check(
+        &self,
+        req: tonic::Request<SanityCheckReq>,
+    ) -> Result<tonic::Response<SanityCheckRep>, tonic::Status> {
+        let req = req.into_inner();
+        let mut cli = self.io_front_cli.clone();
+        let key = req.key;
+        let n_lost = cli.sanity_check(key).await.unwrap();
+        let rep = SanityCheckRep {
+            n_lost: n_lost as u32,
+        };
         Ok(tonic::Response::new(rep))
     }
     async fn create(
