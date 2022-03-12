@@ -140,14 +140,22 @@
                         <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
 <p>TBD</p>
 <h1><a class="header" href="#architecture" id="architecture">Architecture</a></h1>
+<h2><a class="header" href="#overview" id="overview">Overview</a></h2>
 <p>Sorock implements the server using <a href="https://github.com/hyperium/tonic">Tonic</a> so
 all external communication is done by gRPC.</p>
 <p>Tonic allows to stack gRPC services in the server.</p>
 <p>Sorock uses Raft consensus algorithm to replicate the cluster change
-because all nodes have to at least eventually see the same cluster state and replication should be quick enough. Some other system uses gossip protocol to disseminate the cluster change but using Raft it will be more quicker.</p>
+because all nodes have to at least eventually see the same cluster state and replication should be quick enough.
+Some other system uses gossip protocol to disseminate the cluster change but using Raft it will be more quicker.</p>
 <p>Raft service builds the <a href="https://github.com/akiradeveloper/ASURA">ASURA</a> data structure based on cluster changes and then it is passed to Storage service.</p>
-<p>Storage service is responsible for handling user requests but lot of p2p communications are executed in the cluster. When the cluster is changed, it tries to move the erasure-coded pieces to the appropriate nodes and rebuild a piece if it is lost.</p>
+<p>Storage service is responsible for handling user requests but lot of p2p communications are executed in the cluster.
+When the cluster is changed, it tries to move the erasure-coded pieces to the appropriate nodes and rebuild a piece if it is lost.</p>
 <p><img src="images/arch.png" alt="" /></p>
+<h2><a class="header" href="#microservices" id="microservices">Microservices</a></h2>
+<p>The internal of the Storage service is implemented as a group of in-process microservices.</p>
+<p><a href="https://github.com/akiradeveloper/norpc">norpc</a> is a library to design async application that in-process microservices running on Tokio runtime communicate each other using RPC over messsage channel. You can learn more about the library in this doc: <a href="https://akiradeveloper.github.io/norpc/">norpc book</a>.</p>
+<p>This project is not only a aspiring distributed storage project but an experiment in software architecture. My question is &quot;Can norpc design async application better?&quot;. To search for the answer, the internal of Sorock is designed this way.</p>
+<p><img src="images/norpc.png" alt="" /></p>
 <h1><a class="header" href="#api" id="api">API</a></h1>
 <p>Sorock provides only simple APIs.</p>
 <h2><a class="header" href="#createkey-value" id="createkey-value">Create(Key, Value)</a></h2>
