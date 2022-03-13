@@ -1,6 +1,6 @@
 [workspace]
 members = [
 	"sorock",
-	"sorock-bin",
+	"sorock-core",
 	"failure-detector"
 ]

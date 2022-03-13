@@ -1,4 +1,4 @@
-use sorock::*;
+use sorock_core::*;
 mod mem_piece_store;
 
 use lol_core::Uri;
