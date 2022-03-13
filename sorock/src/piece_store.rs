@@ -1,5 +1,5 @@
 use crate::*;
-define_client!(PieceStore);
+
 #[norpc::service]
 trait PieceStore {
     fn get_piece(loc: PieceLocator) -> Option<Vec<u8>>;
@@ -7,3 +7,4 @@ trait PieceStore {
     fn delete_piece(loc: PieceLocator);
     fn keys() -> Vec<String>;
 }
+define_client!(PieceStore);
