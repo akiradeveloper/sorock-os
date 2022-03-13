@@ -5,20 +5,13 @@ import "google/protobuf/empty.proto";
 package fd;
 
 message Ping1Req {
-
-}
-message Ping1Rep {
-
 }
 
 message Ping2Req {
-
-}
-message Ping2Rep {
-
+	string suspect_uri = 1;
 }
 
 service Fd {
-	rpc ping1(Ping1Req) returns (Ping1Rep);
-	rpc ping2(Ping2Req) returns (Ping2Rep);
+	rpc ping1(Ping1Req) returns (google.protobuf.Empty);
+	rpc ping2(Ping2Req) returns (google.protobuf.Empty);
 }
