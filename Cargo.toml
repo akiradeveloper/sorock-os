@@ -2,4 +2,5 @@
 members = [
 	"sorock",
 	"sorock-bin",
+	"failure-detector"
 ]
