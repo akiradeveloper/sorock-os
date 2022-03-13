@@ -14,12 +14,12 @@ macro_rules! define_client {
 
 mod safe_future;
 use safe_future::into_safe_future;
-pub mod piece_store;
 pub mod cluster_in;
 mod cluster_map;
 pub mod io_front;
 pub mod peer_in;
 pub mod peer_out;
+pub mod piece_store;
 pub mod stabilizer;
 pub mod storage_service;
 use cluster_map::ClusterMap;

@@ -1,6 +1,6 @@
+use bytes::Bytes;
 use sorock_core::*;
 use std::collections::HashMap;
-use bytes::Bytes;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

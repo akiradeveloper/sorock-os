@@ -1,6 +1,7 @@
 use sorock_core::*;
 mod mem_piece_store;
 
+use bytes::Bytes;
 use lol_core::Uri;
 use serial_test::serial;
 use std::collections::HashMap;
@@ -9,7 +10,6 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tonic::transport::Channel;
-use bytes::Bytes;
 
 fn available_port() -> std::io::Result<u16> {
     TcpListener::bind("localhost:0").map(|x| x.local_addr().unwrap().port())
@@ -32,11 +32,7 @@ async fn start_server(port: u16) {
         peer_out_cli.clone(),
         stabilizer::State::new(uri.clone()),
     );
-    let peer_in_cli = peer_in::spawn(
-        piece_store_cli,
-        peer_out_cli,
-        peer_in::State::new(),
-    );
+    let peer_in_cli = peer_in::spawn(piece_store_cli, peer_out_cli, peer_in::State::new());
     let server = storage_service::Server {
         uri: uri.clone(),
         io_front_cli: io_front_cli.clone(),
