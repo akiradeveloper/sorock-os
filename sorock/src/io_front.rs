@@ -3,7 +3,14 @@ use bytes::BytesMut;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[norpc::service]
+trait IOFront {
+    fn create(key: String, value: Bytes);
+    fn read(key: String) -> Bytes;
+    fn set_new_cluster(cluster: ClusterMap);
+}
 define_client!(IOFront);
+
 pub fn spawn(peer_out_cli: peer_out::ClientT, state: State) -> ClientT {
     use norpc::runtime::send::*;
     let (tx, rx) = tokio::sync::mpsc::channel(100);

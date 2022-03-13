@@ -1,6 +1,11 @@
 use crate::*;
 
+#[norpc::service]
+trait ClusterIn {
+    fn set_new_cluster(cluster: ClusterMap);
+}
 define_client!(ClusterIn);
+
 pub fn spawn(
     io_front_cli: io_front::ClientT,
     stabilizer_cli: stabilizer::ClientT,

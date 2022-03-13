@@ -14,8 +14,6 @@ macro_rules! define_client {
 
 mod safe_future;
 use safe_future::into_safe_future;
-mod def_services;
-use def_services::*;
 pub mod piece_store;
 pub mod cluster_in;
 mod cluster_map;
