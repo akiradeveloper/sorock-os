@@ -70,7 +70,7 @@ impl Rebuild {
             }
         }
 
-        if self.fallback_broadcast {
+        if !self.fallback_broadcast {
             return None;
         }
 
