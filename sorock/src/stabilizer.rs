@@ -3,7 +3,12 @@ use futures::FutureExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[norpc::service]
+trait Stabilizer {
+    fn set_new_cluster(cluster: ClusterMap);
+}
 define_client!(Stabilizer);
+
 pub fn spawn(
     piece_store_cli: piece_store::ClientT,
     peer_out_cli: peer_out::ClientT,

@@ -1,0 +1,15 @@
+[package]
+name = "sorock-bin"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sorock = { path = "../sorock" }
+tokio = { version = "1.10", features = ["full"] }
+tonic = "0.6"
+signal-hook = "0.3"
+signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
+anyhow = "1"
+futures = "0.3"

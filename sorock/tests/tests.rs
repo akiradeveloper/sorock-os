@@ -1,4 +1,6 @@
-use crate::*;
+use sorock::*;
+mod mem_piece_store;
+
 use lol_core::Uri;
 use serial_test::serial;
 use std::collections::HashMap;
@@ -7,6 +9,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tonic::transport::Channel;
+use bytes::Bytes;
 
 fn available_port() -> std::io::Result<u16> {
     TcpListener::bind("localhost:0").map(|x| x.local_addr().unwrap().port())
@@ -23,7 +26,7 @@ async fn start_server(port: u16) {
     let uri = uri(port);
     let peer_out_cli = peer_out::spawn(peer_out::State::new());
     let io_front_cli = io_front::spawn(peer_out_cli.clone(), io_front::State::new());
-    let piece_store_cli = piece_store::spawn(piece_store::State::new());
+    let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
     let stabilizer_cli = stabilizer::spawn(
         piece_store_cli.clone(),
         peer_out_cli.clone(),

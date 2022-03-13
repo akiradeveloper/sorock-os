@@ -3,7 +3,15 @@ use rebuild::Rebuild;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[norpc::service]
+trait PeerIn {
+    fn set_new_cluster(cluster: ClusterMap);
+    fn save_piece(piece: SendPiece);
+    fn find_piece(loc: PieceLocator) -> Option<Vec<u8>>;
+    fn find_any_pieces(key: String) -> Vec<(u8, Vec<u8>)>;
+}
 define_client!(PeerIn);
+
 pub fn spawn(
     piece_store_cli: piece_store::ClientT,
     peer_out_cli: peer_out::ClientT,

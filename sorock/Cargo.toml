@@ -15,8 +15,6 @@ http-serde = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 prost = "0.9"
-signal-hook = "0.3"
-signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 futures = "0.3"
 anyhow = "1"
 norpc = { version = "0.7", features = ["runtime"] }
@@ -32,7 +30,3 @@ prost-build = "0.9"
 serial_test = "*"
 rand = "0.8"
 md5 = "0.7"
-
-[[bin]]
-name = "sorock"
-path = "src/main.rs"
