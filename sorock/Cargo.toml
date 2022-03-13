@@ -32,7 +32,3 @@ prost-build = "0.9"
 serial_test = "*"
 rand = "0.8"
 md5 = "0.7"
-
-[[bin]]
-name = "sorock"
-path = "src/main.rs"

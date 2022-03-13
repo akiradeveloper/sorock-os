@@ -1,8 +1,8 @@
+use crate::*;
 use tonic::transport::Channel;
 
-use crate::proto_compiled::sorock_client::SorockClient;
-use crate::proto_compiled::{IndexedPiece, RequestAnyPiecesReq, RequestPieceReq, SendPieceReq};
-use crate::*;
+use proto_compiled::sorock_client::SorockClient;
+use proto_compiled::{IndexedPiece, RequestAnyPiecesReq, RequestPieceReq, SendPieceReq};
 use lol_core::Uri;
 use std::collections::HashMap;
 use std::sync::Arc;
