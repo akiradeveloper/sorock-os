@@ -1,5 +1,8 @@
 # Math
 
+We can give a theoritical analysis to Sorock
+by doing some maths.
+
 ## How many pieces are moved on cluster change?
 
 In computing N holder nodes for a key,
@@ -57,3 +60,25 @@ So the expection number to compute the all N holders in general will be
 \\[ \sum_{i=0}^{N-1} \frac{C}{C-i} = \sum_{i=0}^{N-1} ( 1 + \frac{i}{C-i} ) = N + \sum_{i=0}^{N-1} \frac{i}{C-i} \\]
 
 This means when C is large enough (100~) the cost of computing N holders is decreasing to only N (one random number per holder which is super fast). Since the holder computation is frequently executed in the implementation and erasure-coding storage uses a lot of computational resource, the cost should be lower as possible. This is why I choose to use ASURA.
+
+## Possibility of data loss?
+
+The possibility of node failure during time \\(T \ (T \ll MTBF)\\) is 
+
+\\[ p = \frac{T}{MTBF} \\]
+
+In (N,K) erasure coding, a data is splitted into K pieces and add N-K parities.
+It is allowed to lose at most N-K pieces out of total N.
+
+So the chance of losing no more than N-K pieces are
+
+\\[ P_l(p) = \sum_{i=0}^{N-K} p^i \times (1-p)^{N-i} \\]
+
+This should be a monotonic function of p
+so we can solve this by binary searching.
+
+We can say Sorock will not lose the data in \\(P_{SLA} = 0.99999999999\\) (so-called Eleven nice) if
+these two conditions are met:
+
+1. We can find p such that \\(P_l(p) < 1 - P_{SLA}\\).
+2. We can recover every lost pieces within \\(T \le p \times MTBF\\).
