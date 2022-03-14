@@ -1,11 +1,11 @@
 use crate::*;
 use anyhow::Result;
 
+use cluster_map::Change;
 use lol_core::simple::RaftAppSimple;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use cluster_map::Change;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Snapshot {

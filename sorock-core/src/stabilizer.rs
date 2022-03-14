@@ -1,8 +1,8 @@
 use crate::*;
+use cluster_map::Change;
 use futures::FutureExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use cluster_map::Change;
 
 #[norpc::service]
 trait Stabilizer {

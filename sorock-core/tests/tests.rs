@@ -133,11 +133,17 @@ impl Cluster {
     async fn down_node(&mut self, uri: Uri) {
         let chan = self.connect().await;
         let mut cli = lol_core::RaftClient::new(chan);
-        cli.remove_server(lol_core::api::RemoveServerReq {
-            id: uri.to_string(),
-        })
-        .await
-        .unwrap();
+        loop {
+            let ok = cli
+                .remove_server(lol_core::api::RemoveServerReq {
+                    id: uri.to_string(),
+                })
+                .await
+                .is_ok();
+            if ok {
+                break;
+            }
+        }
         let hdl = self.servers.remove(&uri).unwrap();
         hdl.abort();
     }

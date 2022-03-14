@@ -31,7 +31,12 @@ impl ClusterMap {
             }),
         }
     }
-    pub(crate) fn build(version: u64, last_change: Change, cluster: asura::Cluster, idmap: HashMap<u64, URI>) -> Self {
+    pub(crate) fn build(
+        version: u64,
+        last_change: Change,
+        cluster: asura::Cluster,
+        idmap: HashMap<u64, URI>,
+    ) -> Self {
         let inner = Inner {
             version,
             last_change,
