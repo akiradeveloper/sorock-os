@@ -114,11 +114,18 @@ impl Cluster {
         }
         let chan = self.connect().await;
         let mut cli = lol_core::RaftClient::new(chan);
-        cli.add_server(lol_core::api::AddServerReq {
-            id: add_uri.to_string(),
-        })
-        .await
-        .unwrap();
+        loop {
+            dbg!("try add");
+            let ok = cli
+                .add_server(lol_core::api::AddServerReq {
+                    id: add_uri.to_string(),
+                })
+                .await
+                .is_ok();
+            if ok {
+                break;
+            }
+        }
         tokio::time::sleep(Duration::from_millis(100)).await;
         self.servers.insert(add_uri.clone(), hdl);
 
