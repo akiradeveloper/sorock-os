@@ -10,8 +10,11 @@ macro_rules! define_client {
     };
 }
 
+use tonic::transport::Uri;
+
 pub mod app_in;
 pub mod app_out;
 mod peer_out;
 mod queue;
 mod reporter;
+mod server;

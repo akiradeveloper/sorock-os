@@ -9,6 +9,7 @@ edition = "2021"
 norpc = { version = "0.7", features = ["runtime"] }
 paste = "1"
 tonic = "0.6"
+prost = "0.9"
 
 [build-dependencies]
 tonic-build = "0.6"
