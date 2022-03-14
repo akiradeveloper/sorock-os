@@ -41,7 +41,7 @@ async fn start_server(port: u16) {
     let svc1 = storage_service::make_service(server).await;
 
     let cluster_in_cli = cluster_in::spawn(io_front_cli, stabilizer_cli, peer_in_cli);
-    let raft_app = raft_service::App::new(cluster_in_cli);
+    let raft_app = raft_service::App::new(uri.clone(), cluster_in_cli);
     let raft_app =
         lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::BytesRepository::new());
     let config = lol_core::ConfigBuilder::default()
@@ -115,14 +115,14 @@ impl Cluster {
         let chan = self.connect().await;
         let mut cli = lol_core::RaftClient::new(chan);
         loop {
-            let ok = cli
+            let res = cli
                 .add_server(lol_core::api::AddServerReq {
                     id: add_uri.to_string(),
                 })
-                .await
-                .is_ok();
-            if ok {
-                break;
+                .await;
+            match res {
+                Ok(_) => break,
+                Err(e) => { dbg!(e); },
             }
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -256,14 +256,21 @@ async fn test_io_1_node() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 #[serial]
 async fn test_add_3_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
-    for _ in 0..3 {
-        let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
-    }
+
+    let uri = cluster.up_node().await;
+    cluster.add_node(uri, 1.0).await;
+    
+    let uri = cluster.up_node().await;
+    cluster.add_node(uri, 1.0).await;
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    dbg!("now!");
+    let uri = cluster.up_node().await;
+    cluster.add_node(uri, 1.0).await;
     Ok(())
 }
 

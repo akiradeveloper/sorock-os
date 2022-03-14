@@ -72,10 +72,12 @@ impl State {
 pub struct App {
     pub cluster_in_cli: cluster_in::ClientT,
     pub state: Arc<RwLock<State>>,
+    pub uri: Uri,
 }
 impl App {
-    pub fn new(cluster_in_cli: cluster_in::ClientT) -> Self {
+    pub fn new(uri: Uri, cluster_in_cli: cluster_in::ClientT) -> Self {
         Self {
+            uri,
             cluster_in_cli,
             state: Arc::new(RwLock::new(State::new())),
         }
@@ -84,7 +86,9 @@ impl App {
 #[tonic::async_trait]
 impl RaftAppSimple for App {
     async fn process_write(&self, req: &[u8]) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+        dbg!(&self.uri);
         let command = Command::decode(&req);
+        dbg!(&command);
         match command {
             Command::AddNode { uri, cap } => self.state.write().await.add_node(uri, cap),
             Command::RemoveNode { uri } => self.state.write().await.remove_node(uri),
@@ -110,13 +114,18 @@ impl RaftAppSimple for App {
         // Ok((vec![], None))
     }
     async fn install_snapshot(&self, snapshot: Option<&[u8]>) -> Result<()> {
+        dbg!(&self.uri);
         let init_state = match snapshot {
-            None => State::new(),
+            None => {
+                dbg!("none");
+                State::new()
+            }
             Some(snapshot) => {
                 let snapshot = Snapshot::decode(&snapshot);
                 let cluster = asura::Cluster::from_table(snapshot.table);
                 let next_id = snapshot.next_id;
                 let version = snapshot.version;
+                dbg!(next_id,version);
                 State {
                     version,
                     cluster,

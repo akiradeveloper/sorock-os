@@ -38,7 +38,7 @@ pub const K: usize = 4;
 /// Number of data + parity chunks
 pub const N: usize = 8;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 enum Command {
     AddNode { uri: URI, cap: f64 },
     RemoveNode { uri: URI },
@@ -64,5 +64,5 @@ pub struct SendPiece {
     pub data: Option<Bytes>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Hash, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
 struct URI(#[serde(with = "http_serde::uri")] tonic::transport::Uri);
