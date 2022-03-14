@@ -92,6 +92,7 @@ enum Action {
 enum Change {
     Add(Uri),
     Remove(Uri),
+    None,
 }
 fn compute_last_change(old: &ClusterMap, new: &ClusterMap) -> Change {
     let mut xx = old.members();
@@ -111,7 +112,7 @@ fn compute_last_change(old: &ClusterMap, new: &ClusterMap) -> Change {
         let x = xx.into_iter().last().unwrap();
         Change::Remove(x)
     } else {
-        unreachable!()
+        Change::None
     }
 }
 

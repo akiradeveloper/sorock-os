@@ -86,7 +86,7 @@ impl RaftAppSimple for App {
         }
 
         let cm = self.state.read().await.make_cluster_map();
-        dbg!(cm.members());
+        // dbg!(cm.members());
         let mut cli = self.cluster_in_cli.clone();
         cli.set_new_cluster(cm).await.unwrap();
 
@@ -122,7 +122,7 @@ impl RaftAppSimple for App {
         };
         let mut writer = self.state.write().await;
         let cluster = init_state.make_cluster_map();
-        dbg!(cluster.members());
+        // dbg!(cluster.members());
         let mut cli = self.cluster_in_cli.clone();
         cli.set_new_cluster(cluster).await.unwrap();
 
