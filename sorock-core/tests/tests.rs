@@ -401,7 +401,7 @@ async fn test_shrinking_cluster() -> anyhow::Result<()> {
         cluster.create(k, v).await;
     }
 
-    for _ in 0..6 {
+    for _ in 0..7 {
         for (k, v) in &dataset {
             let read = cluster.read(k).await;
             assert_eq!(&read, v);
@@ -427,7 +427,7 @@ async fn test_changing_cluster() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(10);
+    let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
