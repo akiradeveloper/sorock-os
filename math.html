@@ -136,6 +136,8 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#math" id="math">Math</a></h1>
+<p>We can give a theoritical analysis to Sorock
+by doing some maths.</p>
 <h2><a class="header" href="#how-many-pieces-are-moved-on-cluster-change" id="how-many-pieces-are-moved-on-cluster-change">How many pieces are moved on cluster change?</a></h2>
 <p>In computing N holder nodes for a key,
 computing the holder node for each (key, index) pair independently
@@ -173,6 +175,21 @@ the expection number for the second choice will be</p>
 <p>So the expection number to compute the all N holders in general will be </p>
 <p>\[ \sum_{i=0}^{N-1} \frac{C}{C-i} = \sum_{i=0}^{N-1} ( 1 + \frac{i}{C-i} ) = N + \sum_{i=0}^{N-1} \frac{i}{C-i} \]</p>
 <p>This means when C is large enough (100~) the cost of computing N holders is decreasing to only N (one random number per holder which is super fast). Since the holder computation is frequently executed in the implementation and erasure-coding storage uses a lot of computational resource, the cost should be lower as possible. This is why I choose to use ASURA.</p>
+<h2><a class="header" href="#possibility-of-data-loss" id="possibility-of-data-loss">Possibility of data loss?</a></h2>
+<p>The possibility of node failure during time \(T \ (T \ll MTBF)\) is </p>
+<p>\[ p = \frac{T}{MTBF} \]</p>
+<p>In (N,K) erasure coding, a data is splitted into K pieces and add N-K parities.
+It is allowed to lose at most N-K pieces out of total N.</p>
+<p>So the chance of losing no more than N-K pieces are</p>
+<p>\[ P_l(p) = \sum_{i=0}^{N-K} p^i \times (1-p)^{N-i} \]</p>
+<p>This should be a monotonic function of p
+so we can solve this by binary searching.</p>
+<p>We can say Sorock will not lose the data in \(P_{SLA} = 0.99999999999\) (so-called Eleven nice) if
+these two conditions are met:</p>
+<ol>
+<li>We can find p such that \(P_l(p) &lt; 1 - P_{SLA}\).</li>
+<li>We can recover every lost pieces within \(T \le p \times MTBF\).</li>
+</ol>
 
                     </main>
 

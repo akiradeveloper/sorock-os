@@ -140,14 +140,22 @@
                         <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
 <p>TBD</p>
 <h1><a class="header" href="#architecture" id="architecture">Architecture</a></h1>
+<h2><a class="header" href="#overview" id="overview">Overview</a></h2>
 <p>Sorock implements the server using <a href="https://github.com/hyperium/tonic">Tonic</a> so
 all external communication is done by gRPC.</p>
 <p>Tonic allows to stack gRPC services in the server.</p>
 <p>Sorock uses Raft consensus algorithm to replicate the cluster change
-because all nodes have to at least eventually see the same cluster state and replication should be quick enough. Some other system uses gossip protocol to disseminate the cluster change but using Raft it will be more quicker.</p>
+because all nodes have to at least eventually see the same cluster state and replication should be quick enough.
+Some other system uses gossip protocol to disseminate the cluster change but using Raft it will be more quicker.</p>
 <p>Raft service builds the <a href="https://github.com/akiradeveloper/ASURA">ASURA</a> data structure based on cluster changes and then it is passed to Storage service.</p>
-<p>Storage service is responsible for handling user requests but lot of p2p communications are executed in the cluster. When the cluster is changed, it tries to move the erasure-coded pieces to the appropriate nodes and rebuild a piece if it is lost.</p>
+<p>Storage service is responsible for handling user requests but lot of p2p communications are executed in the cluster.
+When the cluster is changed, it tries to move the erasure-coded pieces to the appropriate nodes and rebuild a piece if it is lost.</p>
 <p><img src="images/arch.png" alt="" /></p>
+<h2><a class="header" href="#microservices" id="microservices">Microservices</a></h2>
+<p>The internal of the Storage service is implemented as a group of in-process microservices.</p>
+<p><a href="https://github.com/akiradeveloper/norpc">norpc</a> is a library to design async application that in-process microservices running on Tokio runtime communicate each other using RPC over messsage channel. You can learn more about the library in this doc: <a href="https://akiradeveloper.github.io/norpc/">norpc book</a>.</p>
+<p>This project is not only a aspiring distributed storage project but an experiment in software architecture. My question is &quot;Can norpc design async application better?&quot;. To search for the answer, the internal of Sorock is designed this way.</p>
+<p><img src="images/norpc.png" alt="" /></p>
 <h1><a class="header" href="#api" id="api">API</a></h1>
 <p>Sorock provides only simple APIs.</p>
 <h2><a class="header" href="#createkey-value" id="createkey-value">Create(Key, Value)</a></h2>
@@ -164,6 +172,8 @@ Regarding the Capacity, recommendation is setting x if the node has xTB local st
 <h2><a class="header" href="#removenodeuri" id="removenodeuri">RemoveNode(URI)</a></h2>
 <p>Remove a node from the cluster.</p>
 <h1><a class="header" href="#math" id="math">Math</a></h1>
+<p>We can give a theoritical analysis to Sorock
+by doing some maths.</p>
 <h2><a class="header" href="#how-many-pieces-are-moved-on-cluster-change" id="how-many-pieces-are-moved-on-cluster-change">How many pieces are moved on cluster change?</a></h2>
 <p>In computing N holder nodes for a key,
 computing the holder node for each (key, index) pair independently
@@ -201,6 +211,21 @@ the expection number for the second choice will be</p>
 <p>So the expection number to compute the all N holders in general will be </p>
 <p>\[ \sum_{i=0}^{N-1} \frac{C}{C-i} = \sum_{i=0}^{N-1} ( 1 + \frac{i}{C-i} ) = N + \sum_{i=0}^{N-1} \frac{i}{C-i} \]</p>
 <p>This means when C is large enough (100~) the cost of computing N holders is decreasing to only N (one random number per holder which is super fast). Since the holder computation is frequently executed in the implementation and erasure-coding storage uses a lot of computational resource, the cost should be lower as possible. This is why I choose to use ASURA.</p>
+<h2><a class="header" href="#possibility-of-data-loss" id="possibility-of-data-loss">Possibility of data loss?</a></h2>
+<p>The possibility of node failure during time \(T \ (T \ll MTBF)\) is </p>
+<p>\[ p = \frac{T}{MTBF} \]</p>
+<p>In (N,K) erasure coding, a data is splitted into K pieces and add N-K parities.
+It is allowed to lose at most N-K pieces out of total N.</p>
+<p>So the chance of losing no more than N-K pieces are</p>
+<p>\[ P_l(p) = \sum_{i=0}^{N-K} p^i \times (1-p)^{N-i} \]</p>
+<p>This should be a monotonic function of p
+so we can solve this by binary searching.</p>
+<p>We can say Sorock will not lose the data in \(P_{SLA} = 0.99999999999\) (so-called Eleven nice) if
+these two conditions are met:</p>
+<ol>
+<li>We can find p such that \(P_l(p) &lt; 1 - P_{SLA}\).</li>
+<li>We can recover every lost pieces within \(T \le p \times MTBF\).</li>
+</ol>
 
                     </main>
 
