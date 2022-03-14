@@ -100,8 +100,8 @@ impl RaftAppSimple for App {
             next_id,
             version,
         };
-        // Ok((vec![], Some(Snapshot::encode(&snapshot))))
-        Ok((vec![], None))
+        Ok((vec![], Some(Snapshot::encode(&snapshot))))
+        // Ok((vec![], None))
     }
     async fn install_snapshot(&self, snapshot: Option<&[u8]>) -> Result<()> {
         let init_state = match snapshot {

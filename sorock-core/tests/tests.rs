@@ -246,6 +246,17 @@ async fn test_io_1_node() -> anyhow::Result<()> {
 
 #[tokio::test]
 #[serial]
+async fn test_add_3_node() -> anyhow::Result<()> {
+    let mut cluster = Cluster::new();
+    for _ in 0..3 {
+        let uri = cluster.up_node().await;
+        cluster.add_node(uri, 1.0).await;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+#[serial]
 async fn test_add_10_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
