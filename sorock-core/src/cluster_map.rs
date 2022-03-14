@@ -2,8 +2,16 @@ use crate::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+#[derive(Clone, Debug)]
+pub enum Change {
+    Add(Uri),
+    Remove(Uri),
+    Set,
+}
+
 struct Inner {
     version: u64,
+    last_change: Change,
     cluster: asura::Cluster,
     idmap: HashMap<u64, URI>,
 }
@@ -17,20 +25,25 @@ impl ClusterMap {
         Self {
             inner: Arc::new(Inner {
                 version: 0,
+                last_change: Change::Set,
                 cluster: asura::Cluster::new(),
                 idmap: HashMap::new(),
             }),
         }
     }
-    pub(crate) fn build(version: u64, cluster: asura::Cluster, idmap: HashMap<u64, URI>) -> Self {
+    pub(crate) fn build(version: u64, last_change: Change, cluster: asura::Cluster, idmap: HashMap<u64, URI>) -> Self {
         let inner = Inner {
             version,
+            last_change,
             cluster,
             idmap,
         };
         Self {
             inner: Arc::new(inner),
         }
+    }
+    pub fn last_change(&self) -> Change {
+        self.inner.last_change.clone()
     }
     pub fn version(&self) -> u64 {
         self.inner.version

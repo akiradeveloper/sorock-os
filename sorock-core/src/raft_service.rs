@@ -5,6 +5,7 @@ use lol_core::simple::RaftAppSimple;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use cluster_map::Change;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Snapshot {
@@ -27,23 +28,26 @@ pub struct State {
     uri_map: HashMap<URI, u64>,
     next_id: u64,
     version: u64,
+    last_change: Change,
 }
 impl State {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             cluster: asura::Cluster::new(),
             uri_map: HashMap::new(),
             next_id: 0,
             version: 0,
+            last_change: Change::Set,
         }
     }
     fn add_node(&mut self, uri: URI, cap: f64) {
         if !self.uri_map.contains_key(&uri) {
             let node_id = self.next_id;
-            self.uri_map.insert(uri, node_id);
+            self.uri_map.insert(uri.clone(), node_id);
             self.cluster.add_nodes([asura::Node { node_id, cap }]);
             self.next_id += 1;
             self.version += 1;
+            self.last_change = Change::Add(uri.0)
         }
     }
     fn remove_node(&mut self, uri: URI) {
@@ -52,6 +56,7 @@ impl State {
             self.uri_map.remove(&uri);
             self.cluster.remove_node(node_id);
             self.version += 1;
+            self.last_change = Change::Remove(uri.0)
         }
     }
     fn make_cluster_map(&self) -> ClusterMap {
@@ -60,7 +65,7 @@ impl State {
         for (k, v) in &self.uri_map {
             idmap.insert(*v, k.clone());
         }
-        ClusterMap::build(self.version, cluster, idmap)
+        ClusterMap::build(self.version, self.last_change.clone(), cluster, idmap)
     }
 }
 
@@ -117,6 +122,7 @@ impl RaftAppSimple for App {
                     cluster,
                     uri_map: snapshot.uri_map,
                     next_id,
+                    last_change: Change::Set,
                 }
             }
         };

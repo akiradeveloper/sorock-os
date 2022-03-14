@@ -2,6 +2,7 @@ use crate::*;
 use futures::FutureExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use cluster_map::Change;
 
 #[norpc::service]
 trait Stabilizer {
@@ -56,7 +57,7 @@ impl Stabilizer for App {
         let old_cluster = cur_cluster.clone();
 
         let this_uri = &self.state.uri;
-        let last_change = compute_last_change(&old_cluster, &new_cluster);
+        let last_change = new_cluster.last_change();
 
         let peer_out_cli = self.peer_out_cli.clone();
         let mut piece_store_cli = self.piece_store_cli.clone();
@@ -86,36 +87,6 @@ enum Action {
     SelfHeal { from: Uri, loc: PieceLocator },
     MoveOwnership { to: Uri, loc: PieceLocator },
     PseudoMove { to: Uri, loc: PieceLocator },
-}
-
-#[derive(Clone, Debug)]
-enum Change {
-    Add(Uri),
-    Remove(Uri),
-    None,
-}
-fn compute_last_change(old: &ClusterMap, new: &ClusterMap) -> Change {
-    let mut old = old.members();
-    let n_old = old.len();
-    let mut new = new.members();
-    let n_new = new.len();
-    match (n_old, n_new) {
-        (n_old, n_new) if n_new == n_old + 1 => {
-            for x in old {
-                new.remove(&x);
-            }
-            let new_one = new.into_iter().last().unwrap();
-            Change::Add(new_one)
-        }
-        (n_old, n_new) if n_new + 1 == n_old => {
-            for x in new {
-                old.remove(&x);
-            }
-            let old_one = old.into_iter().last().unwrap();
-            Change::Remove(old_one)
-        }
-        _ => Change::None,
-    }
 }
 
 struct Stabilize {
