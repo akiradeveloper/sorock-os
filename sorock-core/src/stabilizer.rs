@@ -95,24 +95,26 @@ enum Change {
     None,
 }
 fn compute_last_change(old: &ClusterMap, new: &ClusterMap) -> Change {
-    let mut xx = old.members();
-    let mut yy = new.members();
-    if yy.len() > xx.len() {
-        assert_eq!(yy.len(), xx.len() + 1);
-        for x in xx {
-            yy.remove(&x);
+    let mut old = old.members();
+    let n_old = old.len();
+    let mut new = new.members();
+    let n_new = new.len();
+    match (n_old, n_new) {
+        (n_old, n_new) if n_new == n_old + 1 => {
+            for x in old {
+                new.remove(&x);
+            }
+            let new_one = new.into_iter().last().unwrap();
+            Change::Add(new_one)
         }
-        let y = yy.into_iter().last().unwrap();
-        Change::Add(y)
-    } else if xx.len() > yy.len() {
-        assert_eq!(xx.len(), yy.len() + 1);
-        for y in yy {
-            xx.remove(&y);
+        (n_old, n_new) if n_new + 1 == n_old => {
+            for x in new {
+                old.remove(&x);
+            }
+            let old_one = old.into_iter().last().unwrap();
+            Change::Remove(old_one)
         }
-        let x = xx.into_iter().last().unwrap();
-        Change::Remove(x)
-    } else {
-        Change::None
+        _ => Change::None,
     }
 }
 
