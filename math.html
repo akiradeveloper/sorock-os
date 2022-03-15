@@ -136,7 +136,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#math" id="math">Math</a></h1>
-<p>We can give a theoritical analysis to Sorock
+<p>We can give a theoretical analysis to Sorock
 by doing some maths.</p>
 <h2><a class="header" href="#how-many-pieces-are-moved-on-cluster-change" id="how-many-pieces-are-moved-on-cluster-change">How many pieces are moved on cluster change?</a></h2>
 <p>In computing N holder nodes for a key,
@@ -180,11 +180,11 @@ the expection number for the second choice will be</p>
 <p>\[ p = \frac{T}{MTBF} \]</p>
 <p>In (N,K) erasure coding, a data is splitted into K pieces and add N-K parities.
 It is allowed to lose at most N-K pieces out of total N.</p>
-<p>So the chance of losing no more than N-K pieces are</p>
-<p>\[ P_l(p) = \sum_{i=0}^{N-K} p^i \times (1-p)^{N-i} \]</p>
+<p>So the chance of losing no more than N-K pieces is</p>
+<p>\[ P_l(p) = \sum_{i=0}^{N-K} \binom{N}{i} \ p^i \ (1-p)^{N-i} \]</p>
 <p>This should be a monotonic function of p
 so we can solve this by binary searching.</p>
-<p>We can say Sorock will not lose the data in \(P_{SLA} = 0.99999999999\) (so-called Eleven nice) if
+<p>Now, we can say Sorock will not lose the data in \(P_{SLA} = 0.99999999999\) (so-called Eleven nine) if
 these two conditions are met:</p>
 <ol>
 <li>We can find p such that \(P_l(p) &lt; 1 - P_{SLA}\).</li>
