@@ -175,9 +175,17 @@ the expection number for the second choice will be</p>
 <p>So the expection number to compute the all N holders in general will be </p>
 <p>\[ \sum_{i=0}^{N-1} \frac{C}{C-i} = \sum_{i=0}^{N-1} ( 1 + \frac{i}{C-i} ) = N + \sum_{i=0}^{N-1} \frac{i}{C-i} \]</p>
 <p>This means when C is large enough (100~) the cost of computing N holders is decreasing to only N (one random number per holder which is super fast). Since the holder computation is frequently executed in the implementation and erasure-coding storage uses a lot of computational resource, the cost should be lower as possible. This is why I choose to use ASURA.</p>
+<h2><a class="header" href="#approximation-of-node-failure-possibility" id="approximation-of-node-failure-possibility">Approximation of node failure possibility</a></h2>
+<p>Failure rate p during period T is</p>
+<p>\[ p = 1 - e^{\frac{-T}{MTBF}} \]</p>
+<p>Maclaurin expansion of \( e^x \) is</p>
+<p>\[ e^x = 1 + x + \frac{x^2}{2} + \ ... \]</p>
+<p>If \(x^2 \ll 1 \), we get an approximation</p>
+<p>\[ e^x = 1 + x \]
+\[ -x = 1 - e^x \]</p>
+<p>If \(T \ll MTBF \)</p>
+<p>\[ p = \frac{T}{MTBF} = 1 - e^{\frac{-T}{MTBF}} \]</p>
 <h2><a class="header" href="#possibility-of-data-loss" id="possibility-of-data-loss">Possibility of data loss?</a></h2>
-<p>The possibility of node failure during time \(T \ (T \ll MTBF)\) is </p>
-<p>\[ p = \frac{T}{MTBF} \]</p>
 <p>In (N,K) erasure coding, a data is splitted into K pieces and add N-K parities.
 It is allowed to lose at most N-K pieces out of total N.</p>
 <p>So the chance of losing no more than N-K pieces is</p>
