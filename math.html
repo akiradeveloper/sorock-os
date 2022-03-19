@@ -193,11 +193,15 @@ It is allowed to lose at most N-K pieces out of total N.</p>
 <p>This should be a monotonic function of p
 so we can solve this by binary searching.</p>
 <p>Now, we can say Sorock will not lose the data in \(P_{SLA} = 0.99999999999\) (so-called Eleven nine) if
-these two conditions are met:</p>
+these two conditions are satisfied:</p>
 <ol>
 <li>We can find p such that \(P_l(p) \ge P_{SLA}\).</li>
 <li>We can recover every lost pieces within \(T \le p \times MTBF\).</li>
 </ol>
+<p>data-loss-calculator is the implementation of this algorithm.
+An example of calculation is for (8,4) erasure coding (meaning 4 data chunks and 4 parity chunks)
+and MTBF of 1M hours, every piece should be recovered every 2824 hours to
+achieve even nine SLA level.</p>
 
                     </main>
 
