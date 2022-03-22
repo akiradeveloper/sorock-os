@@ -1,14 +1,21 @@
+use crate::*;
 use tonic::transport::Channel;
 
-use crate::proto_compiled::sorock_client::SorockClient;
-use crate::proto_compiled::{IndexedPiece, RequestAnyPiecesReq, RequestPieceReq, SendPieceReq};
-use crate::*;
 use lol_core::Uri;
+use proto_compiled::sorock_client::SorockClient;
+use proto_compiled::{IndexedPiece, RequestAnyPiecesReq, RequestPieceReq, SendPieceReq};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[norpc::service]
+trait PeerOut {
+    fn send_piece(to: Uri, piece: SendPiece);
+    fn request_piece(to: Uri, loc: PieceLocator) -> Option<Vec<u8>>;
+    fn request_any_pieces(to: Uri, key: String) -> Vec<(u8, Vec<u8>)>;
+}
 define_client!(PeerOut);
+
 pub fn spawn(state: State) -> ClientT {
     use norpc::runtime::send::*;
     let (tx, rx) = tokio::sync::mpsc::channel(100);

@@ -1,5 +1,8 @@
 # Math
 
+We can give a theoretical analysis to Sorock
+by doing some maths.
+
 ## How many pieces are moved on cluster change?
 
 In computing N holder nodes for a key,
@@ -57,3 +60,45 @@ So the expection number to compute the all N holders in general will be
 \\[ \sum_{i=0}^{N-1} \frac{C}{C-i} = \sum_{i=0}^{N-1} ( 1 + \frac{i}{C-i} ) = N + \sum_{i=0}^{N-1} \frac{i}{C-i} \\]
 
 This means when C is large enough (100~) the cost of computing N holders is decreasing to only N (one random number per holder which is super fast). Since the holder computation is frequently executed in the implementation and erasure-coding storage uses a lot of computational resource, the cost should be lower as possible. This is why I choose to use ASURA.
+
+## Approximation of node failure possibility
+
+Failure rate p during period T is
+
+\\[ p = 1 - e^{\frac{-T}{MTBF}} \\]
+
+Maclaurin expansion of \\( e^x \\) is
+
+\\[ e^x = 1 + x + \frac{x^2}{2} + \ ... \\]
+
+If \\(x^2 \ll 1 \\), we get an approximation
+
+\\[ e^x = 1 + x \\]
+\\[ -x = 1 - e^x \\]
+
+If \\(T \ll MTBF \\)
+
+\\[ p = \frac{T}{MTBF} = 1 - e^{\frac{-T}{MTBF}} \\]
+
+## Possibility of data loss?
+
+In (N,K) erasure coding, a data is splitted into K pieces and add N-K parities.
+It is allowed to lose at most N-K pieces out of total N.
+
+So the chance of losing no more than N-K pieces is
+
+\\[ P_l(p) = \sum_{i=0}^{N-K} \binom{N}{i} \ p^i \ (1-p)^{N-i} \\]
+
+This should be a monotonic function of p
+so we can solve this by binary searching.
+
+Now, we can say Sorock will not lose the data in \\(P_{SLA} = 0.99999999999\\) (so-called Eleven-nine) if
+these two conditions are satisfied:
+
+1. We can find p such that \\(P_l(p) \ge P_{SLA}\\).
+2. We can recover every lost pieces within \\(T \le p \times MTBF\\).
+
+data-loss-calculator is the implementation of this algorithm.
+An example of calculation is for (8,4) erasure coding (meaning 4 data chunks and 4 parity chunks)
+and MTBF of 1M hours, every piece should be recovered every 2824 hours to
+achieve Evelen-nine SLA level.

@@ -4,6 +4,12 @@ import "google/protobuf/empty.proto";
 
 package sorock;
 
+message SanityCheckReq {
+	string key = 1;
+}
+message SanityCheckRep {
+	uint32 n_lost = 1;
+}
 message ReadReq {
     string key = 1;
 }
@@ -58,4 +64,5 @@ service Sorock {
 	rpc SendPiece (SendPieceReq) returns (google.protobuf.Empty);
 	rpc RequestPiece (RequestPieceReq) returns (RequestPieceRep);
 	rpc RequestAnyPieces (RequestAnyPiecesReq) returns (RequestAnyPiecesRep);
+	rpc SanityCheck (SanityCheckReq) returns (SanityCheckRep);
 }
