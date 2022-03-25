@@ -21,6 +21,7 @@ norpc = { version = "0.7", features = ["runtime"] }
 asura = { git = "https://github.com/akiradeveloper/asura" }
 paste = "1"
 bincode = "1.3"
+thiserror = "1"
 
 [build-dependencies]
 tonic-build = "0.6"

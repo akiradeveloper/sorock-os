@@ -93,7 +93,7 @@ impl RaftAppSimple for App {
         let cm = self.state.read().await.make_cluster_map();
         // dbg!(cm.members());
         let mut cli = self.cluster_in_cli.clone();
-        cli.set_new_cluster(cm).await.unwrap();
+        cli.set_new_cluster(cm).await??;
 
         let reader = self.state.read().await;
         let table = reader.cluster.dump_table();
@@ -130,7 +130,7 @@ impl RaftAppSimple for App {
         let cluster = init_state.make_cluster_map();
         // dbg!(cluster.members());
         let mut cli = self.cluster_in_cli.clone();
-        cli.set_new_cluster(cluster).await?;
+        cli.set_new_cluster(cluster).await??;
 
         *writer = init_state;
         Ok(())

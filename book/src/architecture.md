@@ -26,4 +26,4 @@ The internal of the Storage service is implemented as a group of in-process micr
 
 This project is not only a aspiring distributed storage project but an experiment in software architecture. My question is "Can norpc design async application better?". To search for the answer, the internal of Sorock is designed this way.
 
-![](images/norpc.png)
+![](images/microservices.png)

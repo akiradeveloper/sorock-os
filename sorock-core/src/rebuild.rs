@@ -8,7 +8,7 @@ pub struct Rebuild {
     pub fallback_broadcast: bool,
 }
 impl Rebuild {
-    pub async fn rebuild(self, key: String) -> Option<Vec<Vec<u8>>> {
+    pub async fn rebuild(self, key: String) -> anyhow::Result<Vec<Vec<u8>>> {
         let holders = self.cluster.compute_holders(key.clone(), N);
         let mut futs = vec![];
         for i in 0..N {
@@ -16,22 +16,18 @@ impl Rebuild {
             let key = key.clone();
             let uri = holders[i as usize].clone();
             let fut = async move {
-                let loc = PieceLocator {
-                    key,
-                    index: i as u8,
-                };
                 match uri {
                     Some(uri) => {
-                        let data = peer_out_cli.request_piece(uri, loc).await.unwrap();
-                        (i, data)
+                        let rep = peer_out_cli.request_any_pieces(uri, key).await?;
+                        rep
                     }
                     None => {
-                        panic!("failed to compute the holder node key={}", &loc.key);
+                        anyhow::bail!("failed to compute the holder node key={}", &key);
                     }
                 }
             };
             let fut = tokio::time::timeout(Duration::from_secs(5), fut);
-            futs.push(into_safe_future(fut));
+            futs.push(fut);
         }
 
         let stream = futures::stream::iter(futs);
@@ -46,32 +42,34 @@ impl Rebuild {
             if rep.is_err() {
                 continue;
             }
-            let (i, piece_data) = rep.unwrap();
-            if let Some(piece_data) = piece_data {
-                n_found += 1;
-                data[i as usize] = Some(piece_data);
-                if n_found == K {
-                    use reed_solomon_erasure::galois_8::ReedSolomon;
-                    let r = ReedSolomon::new(K, N - K).unwrap();
-                    if self.with_parity {
-                        r.reconstruct(&mut data).unwrap();
-                    } else {
-                        r.reconstruct_data(&mut data).unwrap();
-                        for _ in 0..(N - K) {
-                            data.pop();
-                        }
-                    }
-                    let mut out = vec![];
-                    for x in data {
-                        out.push(x.unwrap());
-                    }
-                    return Some(out);
+            let pieces = rep.unwrap();
+            for (i, piece_data) in pieces {
+                if data[i as usize] == None {
+                    data[i as usize] = Some(piece_data);
+                    n_found += 1;
                 }
+            }
+            if n_found >= K {
+                use reed_solomon_erasure::galois_8::ReedSolomon;
+                let r = ReedSolomon::new(K, N - K).unwrap();
+                if self.with_parity {
+                    r.reconstruct(&mut data).unwrap();
+                } else {
+                    r.reconstruct_data(&mut data).unwrap();
+                    for _ in 0..(N - K) {
+                        data.pop();
+                    }
+                }
+                let mut out = vec![];
+                for x in data {
+                    out.push(x.unwrap());
+                }
+                return Ok(out);
             }
         }
 
         if !self.fallback_broadcast {
-            return None;
+            anyhow::bail!("couldn't find enough piece without broadcasting.");
         }
 
         // broadcast (fallback)
@@ -82,11 +80,11 @@ impl Rebuild {
             let mut peer_out_cli = self.peer_out_cli.clone();
             let key = key.clone();
             let fut = async move {
-                let pieces = peer_out_cli.request_any_pieces(uri, key).await.unwrap();
+                let pieces = peer_out_cli.request_any_pieces(uri, key).await?;
                 pieces
             };
             let fut = tokio::time::timeout(Duration::from_secs(5), fut);
-            futs.push(into_safe_future(fut));
+            futs.push(fut);
         }
         let stream = futures::stream::iter(futs);
         let n_par = std::thread::available_parallelism().unwrap().get() * 2;
@@ -109,7 +107,7 @@ impl Rebuild {
                     n_found += 1;
                 }
             }
-            if n_found == K {
+            if n_found >= K {
                 use reed_solomon_erasure::galois_8::ReedSolomon;
                 let r = ReedSolomon::new(K, N - K).unwrap();
                 if self.with_parity {
@@ -124,11 +122,11 @@ impl Rebuild {
                 for x in data {
                     out.push(x.unwrap());
                 }
-                return Some(out);
+                return Ok(out);
             }
         }
 
-        None
+        anyhow::bail!("couldn't rebuild pieces (key={}). data is lost", key);
     }
 }
 

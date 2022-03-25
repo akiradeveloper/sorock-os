@@ -31,15 +31,26 @@ async fn start_server(port: u16) {
         peer_out_cli.clone(),
         stabilizer::State::new(uri.clone()),
     );
-    let peer_in_cli = peer_in::spawn(piece_store_cli, peer_out_cli, peer_in::State::new());
-    let server = storage_service::Server {
-        uri: uri.clone(),
-        io_front_cli: io_front_cli.clone(),
-        peer_in_cli: peer_in_cli.clone(),
-    };
+    stabilizer::spawn_tick(stabilizer_cli.clone(), Duration::from_millis(100));
+    let rebuild_queue_cli = rebuild_queue::spawn(
+        piece_store_cli.clone(),
+        peer_out_cli.clone(),
+        stabilizer_cli.clone(),
+        rebuild_queue::State::new(),
+    );
+    rebuild_queue::spawn_tick(rebuild_queue_cli.clone(), Duration::from_millis(500));
+    let peer_in_cli = peer_in::spawn(
+        piece_store_cli,
+        stabilizer_cli.clone(),
+        rebuild_queue_cli.clone(),
+        peer_in::State::new(),
+    );
+    let server =
+        storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone());
     let svc1 = storage_service::make_service(server).await;
 
-    let cluster_in_cli = cluster_in::spawn(io_front_cli, stabilizer_cli, peer_in_cli);
+    let cluster_in_cli =
+        cluster_in::spawn(io_front_cli, stabilizer_cli, peer_in_cli, rebuild_queue_cli);
     let raft_app = raft_service::App::new(cluster_in_cli);
     let raft_app =
         lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::BytesRepository::new());
@@ -114,11 +125,18 @@ impl Cluster {
         }
         let chan = self.connect().await;
         let mut cli = lol_core::RaftClient::new(chan);
-        cli.add_server(lol_core::api::AddServerReq {
-            id: add_uri.to_string(),
-        })
-        .await
-        .unwrap();
+        loop {
+            let rep = cli
+                .add_server(lol_core::api::AddServerReq {
+                    id: add_uri.to_string(),
+                })
+                .await;
+            if rep.is_ok() {
+                break;
+            } else {
+                tokio::task::yield_now().await;
+            }
+        }
         tokio::time::sleep(Duration::from_millis(100)).await;
         self.servers.insert(add_uri.clone(), hdl);
 
@@ -127,11 +145,18 @@ impl Cluster {
     async fn down_node(&mut self, uri: Uri) {
         let chan = self.connect().await;
         let mut cli = lol_core::RaftClient::new(chan);
-        cli.remove_server(lol_core::api::RemoveServerReq {
-            id: uri.to_string(),
-        })
-        .await
-        .unwrap();
+        loop {
+            let rep = cli
+                .remove_server(lol_core::api::RemoveServerReq {
+                    id: uri.to_string(),
+                })
+                .await;
+            if rep.is_ok() {
+                break;
+            } else {
+                tokio::task::yield_now().await;
+            }
+        }
         let hdl = self.servers.remove(&uri).unwrap();
         hdl.abort();
     }

@@ -27,10 +27,10 @@ async fn test_piece_store() {
         index: 3,
     };
     let data = Bytes::copy_from_slice(&[1, 2, 3]);
-    assert_eq!(cli.get_piece(loc.clone()).await.unwrap(), None);
-    cli.put_piece(loc.clone(), data).await.unwrap();
+    assert_eq!(cli.get_piece(loc.clone()).await.unwrap().unwrap(), None);
+    cli.put_piece(loc.clone(), data).await.unwrap().unwrap();
     assert_eq!(
-        cli.get_piece(loc.clone()).await.unwrap(),
+        cli.get_piece(loc.clone()).await.unwrap().unwrap(),
         Some(vec![1, 2, 3])
     );
 }
@@ -53,6 +53,31 @@ impl State {
     pub fn new() -> Self {
         Self {
             buckets: RwLock::new(HashMap::new()),
+        }
+    }
+    async fn piece_exists(&self, loc: PieceLocator) -> bool {
+        let buckets = self.buckets.read().await;
+        let bucket = buckets.get(&loc.key);
+        match bucket {
+            Some(bucket) => bucket.objects[loc.index as usize].is_some(),
+            None => false,
+        }
+    }
+    async fn get_pieces(&self, key: String, n: u8) -> Vec<(u8, Bytes)> {
+        let buckets = self.buckets.read().await;
+        let bucket = buckets.get(&key);
+        match bucket {
+            None => vec![],
+            Some(bucket) => {
+                let pieces = &bucket.objects;
+                let mut out = vec![];
+                for i in 0..n {
+                    if let Some(piece) = &pieces[i as usize] {
+                        out.push((i, piece.clone()))
+                    }
+                }
+                out
+            }
         }
     }
     async fn get_piece(&self, loc: PieceLocator) -> Option<Bytes> {
@@ -100,21 +125,38 @@ struct App {
 }
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
-    async fn get_piece(self, loc: PieceLocator) -> Option<Vec<u8>> {
+    async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
+        let pieces = self.state.get_pieces(key, n).await;
+        let mut out = vec![];
+        for (i, data) in pieces {
+            let mut buf = vec![];
+            buf.extend_from_slice(&data);
+            out.push((i, buf));
+        }
+        Ok(out)
+    }
+    async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
         let buf = self.state.get_piece(loc).await;
-        buf.map(|buf| {
+        let buf = buf.map(|buf| {
             let mut out = vec![];
             out.extend_from_slice(&buf);
             out
-        })
+        });
+        Ok(buf)
     }
-    async fn put_piece(self, loc: PieceLocator, data: Bytes) {
-        self.state.put_piece(loc, data).await
+    async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
+        Ok(self.state.piece_exists(loc).await)
     }
-    async fn delete_piece(self, loc: PieceLocator) {
-        self.state.delete_piece(loc).await
+    async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
+        self.state.put_piece(loc, data).await;
+        Ok(())
     }
-    async fn keys(self) -> Vec<String> {
-        self.state.keys().await
+    async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
+        self.state.delete_piece(loc).await;
+        Ok(())
+    }
+    async fn keys(self) -> anyhow::Result<Vec<String>> {
+        let out = self.state.keys().await;
+        Ok(out)
     }
 }

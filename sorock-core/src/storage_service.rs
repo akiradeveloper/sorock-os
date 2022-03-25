@@ -1,17 +1,29 @@
 use crate::*;
+
 mod proto_compiled {
     tonic::include_proto!("sorock");
 }
 use proto_compiled::{
-    sorock_server::Sorock, AddNodeReq, CreateReq, DeleteReq, IndexedPiece, ReadRep, ReadReq,
-    RemoveNodeReq, RequestAnyPiecesRep, RequestAnyPiecesReq, RequestPieceRep, RequestPieceReq,
-    SanityCheckRep, SanityCheckReq, SendPieceReq,
+    sorock_server::Sorock, AddNodeReq, CreateReq, DeleteReq, IndexedPiece, PieceExistsRep,
+    PieceExistsReq, ReadRep, ReadReq, RemoveNodeReq, RequestAnyPiecesRep, RequestAnyPiecesReq,
+    RequestPieceRep, RequestPieceReq, SanityCheckRep, SanityCheckReq, SendPieceRep, SendPieceReq,
 };
 
 pub struct Server {
-    pub io_front_cli: io_front::ClientT,
-    pub peer_in_cli: peer_in::ClientT,
-    pub uri: Uri,
+    io_front_cli: io_front::ClientT,
+    peer_in_cli: peer_in::ClientT,
+    self_chan: tonic::transport::Channel,
+}
+impl Server {
+    pub fn new(io_front_cli: io_front::ClientT, peer_in_cli: peer_in::ClientT, uri: Uri) -> Self {
+        let e = tonic::transport::Endpoint::new(uri).unwrap();
+        let self_chan = e.connect_lazy();
+        Self {
+            io_front_cli,
+            peer_in_cli,
+            self_chan,
+        }
+    }
 }
 #[tonic::async_trait]
 impl Sorock for Server {
@@ -22,7 +34,7 @@ impl Sorock for Server {
         let req = req.into_inner();
         let mut cli = self.io_front_cli.clone();
         let key = req.key;
-        let res = cli.read(key).await.unwrap();
+        let res = cli.read(key).await.unwrap().unwrap();
         let rep = ReadRep { data: res };
         Ok(tonic::Response::new(rep))
     }
@@ -33,7 +45,7 @@ impl Sorock for Server {
         let req = req.into_inner();
         let mut cli = self.io_front_cli.clone();
         let key = req.key;
-        let n_lost = cli.sanity_check(key).await.unwrap();
+        let n_lost = cli.sanity_check(key).await.unwrap().unwrap();
         let rep = SanityCheckRep {
             n_lost: n_lost as u32,
         };
@@ -47,7 +59,7 @@ impl Sorock for Server {
         let mut cli = self.io_front_cli.clone();
         let key = req.key;
         let data = req.data;
-        cli.create(key, data).await.unwrap();
+        cli.create(key, data).await.unwrap().unwrap();
         Ok(tonic::Response::new(()))
     }
     async fn delete(
@@ -67,9 +79,7 @@ impl Sorock for Server {
         request: tonic::Request<AddNodeReq>,
     ) -> Result<tonic::Response<()>, tonic::Status> {
         let req = request.into_inner();
-        let this_uri = self.uri.clone();
-        let e = tonic::transport::Endpoint::new(this_uri).unwrap();
-        let chan = e.connect().await.unwrap();
+        let chan = self.self_chan.clone();
         let mut cli = lol_core::RaftClient::new(chan);
         let tgt_uri: Uri = req.uri.parse().unwrap();
         let msg = Command::AddNode {
@@ -88,9 +98,7 @@ impl Sorock for Server {
         request: tonic::Request<RemoveNodeReq>,
     ) -> Result<tonic::Response<()>, tonic::Status> {
         let req = request.into_inner();
-        let this_uri = self.uri.clone();
-        let e = tonic::transport::Endpoint::new(this_uri).unwrap();
-        let chan = e.connect().await.unwrap();
+        let chan = self.self_chan.clone();
         let mut cli = lol_core::RaftClient::new(chan);
         let tgt_uri = req.uri.parse().unwrap();
         let msg = Command::RemoveNode { uri: URI(tgt_uri) };
@@ -101,10 +109,23 @@ impl Sorock for Server {
         .unwrap();
         Ok(tonic::Response::new(()))
     }
+    async fn piece_exists(
+        &self,
+        req: tonic::Request<PieceExistsReq>,
+    ) -> Result<tonic::Response<PieceExistsRep>, tonic::Status> {
+        let req = req.into_inner();
+        let loc = PieceLocator {
+            key: req.key,
+            index: req.index as u8,
+        };
+        let mut cli = self.peer_in_cli.clone();
+        let rep = cli.piece_exists(loc).await.unwrap().unwrap();
+        Ok(tonic::Response::new(PieceExistsRep { exists: rep }))
+    }
     async fn send_piece(
         &self,
         request: tonic::Request<SendPieceReq>,
-    ) -> Result<tonic::Response<()>, tonic::Status> {
+    ) -> Result<tonic::Response<SendPieceRep>, tonic::Status> {
         let req = request.into_inner();
         let mut cli = self.peer_in_cli.clone();
         let send_piece = SendPiece {
@@ -115,8 +136,13 @@ impl Sorock for Server {
             },
             data: req.data,
         };
-        cli.save_piece(send_piece).await.unwrap();
-        Ok(tonic::Response::new(()))
+        let rep = cli.save_piece(send_piece).await.unwrap();
+        let error_code = match rep {
+            Ok(()) => 0,
+            Err(SendPieceError::Rejected) => -1,
+            Err(SendPieceError::Failed) => -2,
+        };
+        Ok(tonic::Response::new(SendPieceRep { error_code }))
     }
     async fn request_piece(
         &self,
@@ -128,7 +154,7 @@ impl Sorock for Server {
             key: req.key,
             index: req.index as u8,
         };
-        let res = cli.find_piece(loc).await.unwrap();
+        let res = cli.find_piece(loc).await.unwrap().unwrap();
         let rep = RequestPieceRep { data: res };
         Ok(tonic::Response::new(rep))
     }
@@ -139,7 +165,7 @@ impl Sorock for Server {
         let mut cli = self.peer_in_cli.clone();
         let req = req.into_inner();
         let key = req.key;
-        let rep = cli.find_any_pieces(key).await.unwrap();
+        let rep = cli.find_any_pieces(key).await.unwrap().unwrap();
         let mut pieces = vec![];
         for (i, data) in rep {
             pieces.push(IndexedPiece {
