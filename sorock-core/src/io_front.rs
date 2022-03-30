@@ -5,9 +5,9 @@ use tokio::sync::RwLock;
 
 #[norpc::service]
 trait IOFront {
-    fn create(key: String, value: Bytes);
-    fn read(key: String) -> Bytes;
-    fn sanity_check(key: String) -> usize;
+    fn create(key: String, value: Bytes) -> anyhow::Result<()>;
+    fn read(key: String) -> anyhow::Result<Bytes>;
+    fn sanity_check(key: String) -> anyhow::Result<usize>;
     fn set_new_cluster(cluster: ClusterMap);
 }
 define_client!(IOFront);
@@ -46,7 +46,7 @@ struct App {
 }
 #[norpc::async_trait]
 impl IOFront for App {
-    async fn create(self, key: String, value: Bytes) {
+    async fn create(self, key: String, value: Bytes) -> anyhow::Result<()> {
         use reed_solomon_erasure::galois_8::ReedSolomon;
 
         let plen = value.len() / K;
@@ -89,7 +89,7 @@ impl IOFront for App {
             let key = key.clone();
             let uri = holders[i as usize].clone();
             let mut out_cli = self.peer_out_cli.clone();
-            futs.push(into_safe_future(async move {
+            futs.push(async move {
                 let version = cluster_version;
                 let loc = PieceLocator {
                     key,
@@ -111,23 +111,22 @@ impl IOFront for App {
                     }
                     None => false,
                 }
-            }));
+            });
         }
         let stream = futures::stream::iter(futs);
         let mut buffered = stream.buffer_unordered(N);
         let mut n_ok = 0;
-        while let Some(rep) = buffered.next().await {
-            if let Ok(send_done) = rep {
-                if send_done {
-                    n_ok += 1;
-                }
+        while let Some(send_ok) = buffered.next().await {
+            if send_ok {
+                n_ok += 1;
             }
         }
         if n_ok < K {
-            panic!("failed to write sufficient pieces: key={}", &key);
+            anyhow::bail!("failed to write sufficient pieces: key={}", &key);
         }
+        Ok(())
     }
-    async fn read(self, key: String) -> Bytes {
+    async fn read(self, key: String) -> anyhow::Result<Bytes> {
         let peer_out_cli = self.peer_out_cli.clone();
         let cluster = self.state.cluster.read().await.clone();
         let rebuild = rebuild::Rebuild {
@@ -136,18 +135,15 @@ impl IOFront for App {
             with_parity: false,
             fallback_broadcast: true,
         };
-        if let Some(pieces) = rebuild.rebuild(key.clone()).await {
-            let mut merged = BytesMut::new();
-            for i in 0..K {
-                let piece_data = &pieces[i];
-                merged.extend_from_slice(piece_data);
-            }
-            return merged.freeze();
-        } else {
-            panic!("pieces not found: key={}", &key);
+        let pieces = rebuild.rebuild(key.clone()).await?;
+        let mut merged = BytesMut::new();
+        for i in 0..K {
+            let piece_data = &pieces[i];
+            merged.extend_from_slice(piece_data);
         }
+        return Ok(merged.freeze());
     }
-    async fn sanity_check(self, key: String) -> usize {
+    async fn sanity_check(self, key: String) -> anyhow::Result<usize> {
         let cluster = self.state.cluster.read().await.clone();
         let holders = cluster.compute_holders(key.clone(), N);
         let mut futs = vec![];
@@ -162,13 +158,10 @@ impl IOFront for App {
                         key: key.clone(),
                         index: i as u8,
                     };
-                    let fut = into_safe_future(async move {
-                        let res = peer_out_cli.request_piece(holder, loc).await.unwrap();
-                        match res {
-                            Some(_) => true,
-                            None => false,
-                        }
-                    });
+                    let fut = async move {
+                        let found = peer_out_cli.piece_exists(holder, loc).await.unwrap()?;
+                        Ok::<bool, anyhow::Error>(found)
+                    };
                     let fut = tokio::time::timeout(std::time::Duration::from_secs(5), fut);
                     futs.push(fut);
                 }
@@ -192,7 +185,7 @@ impl IOFront for App {
             }
         }
         let n_lost = n_should_found - n_found;
-        n_lost
+        Ok(n_lost)
     }
     async fn set_new_cluster(self, cluster: ClusterMap) {
         *self.state.cluster.write().await = cluster;

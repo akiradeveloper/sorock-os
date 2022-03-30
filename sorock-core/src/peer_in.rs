@@ -1,20 +1,22 @@
 use crate::*;
-use rebuild::Rebuild;
+use stabilizer::StabilizeTask;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[norpc::service]
 trait PeerIn {
     fn set_new_cluster(cluster: ClusterMap);
-    fn save_piece(piece: SendPiece);
-    fn find_piece(loc: PieceLocator) -> Option<Vec<u8>>;
-    fn find_any_pieces(key: String) -> Vec<(u8, Vec<u8>)>;
+    fn piece_exists(loc: PieceLocator) -> anyhow::Result<bool>;
+    fn save_piece(piece: SendPiece) -> std::result::Result<(), SendPieceError>;
+    fn find_piece(loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>>;
+    fn find_any_pieces(key: String) -> anyhow::Result<Vec<(u8, Vec<u8>)>>;
 }
 define_client!(PeerIn);
 
 pub fn spawn(
     piece_store_cli: piece_store::ClientT,
-    peer_out_cli: peer_out::ClientT,
+    stabilizer_cli: stabilizer::ClientT,
+    rebuild_queue_cli: rebuild_queue::ClientT,
     state: State,
 ) -> ClientT {
     use norpc::runtime::send::*;
@@ -22,7 +24,8 @@ pub fn spawn(
     tokio::spawn(async {
         let svc = App {
             piece_store_cli,
-            peer_out_cli,
+            stabilizer_cli,
+            rebuild_queue_cli,
             state: Arc::new(state),
         };
         let service = PeerInService::new(svc);
@@ -47,64 +50,53 @@ impl State {
 struct App {
     state: Arc<State>,
     piece_store_cli: piece_store::ClientT,
-    peer_out_cli: peer_out::ClientT,
+    stabilizer_cli: stabilizer::ClientT,
+    rebuild_queue_cli: rebuild_queue::ClientT,
 }
 #[norpc::async_trait]
 impl PeerIn for App {
     async fn set_new_cluster(self, cluster: ClusterMap) {
         *self.state.cluster.write().await = cluster;
     }
-    async fn save_piece(mut self, send_piece: SendPiece) {
+    async fn piece_exists(mut self, loc: PieceLocator) -> anyhow::Result<bool> {
+        self.piece_store_cli.piece_exists(loc).await?
+    }
+    async fn save_piece(
+        mut self,
+        send_piece: SendPiece,
+    ) -> std::result::Result<(), SendPieceError> {
         let cluster = self.state.cluster.read().await;
         let this_version = cluster.version();
         if this_version > send_piece.version {
-            panic!(
-                "piece in old version is denied. key={} {} < {}",
-                &send_piece.loc.key, send_piece.version, this_version,
-            );
+            return Err(SendPieceError::Rejected);
         }
+        let loc = send_piece.loc;
         match send_piece.data {
             Some(data) => {
                 self.piece_store_cli
-                    .put_piece(send_piece.loc, data)
+                    .put_piece(loc.clone(), data)
+                    .await
+                    .unwrap()
+                    .map_err(|_| SendPieceError::Failed)?;
+                self.stabilizer_cli
+                    .queue_task(StabilizeTask { key: loc.key })
                     .await
                     .unwrap();
+
+                Ok(())
             }
             None => {
-                let peer_out_cli = self.peer_out_cli.clone();
-                let rebuild = Rebuild {
-                    peer_out_cli,
-                    cluster: cluster.clone(),
-                    with_parity: true,
-                    fallback_broadcast: true,
-                };
-                let key = send_piece.loc.key.clone();
-                let pieces = rebuild.rebuild(key).await;
-                if let Some(mut pieces) = pieces {
-                    let piece_data = pieces.swap_remove(send_piece.loc.index as usize);
-                    self.piece_store_cli
-                        .put_piece(send_piece.loc, piece_data.into())
-                        .await
-                        .unwrap();
-                }
+                let task = rebuild_queue::RebuildTask { loc };
+                self.rebuild_queue_cli.queue_task(task).await.unwrap();
+                Ok(())
             }
         }
     }
-    async fn find_piece(mut self, loc: PieceLocator) -> Option<Vec<u8>> {
-        self.piece_store_cli.get_piece(loc).await.unwrap()
+    async fn find_piece(mut self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
+        let piece = self.piece_store_cli.get_piece(loc).await??;
+        Ok(piece)
     }
-    async fn find_any_pieces(mut self, key: String) -> Vec<(u8, Vec<u8>)> {
-        let mut out = vec![];
-        for index in 0..N {
-            let loc = PieceLocator {
-                key: key.clone(),
-                index: index as u8,
-            };
-            let found_piece = self.piece_store_cli.get_piece(loc).await.unwrap_or(None);
-            if let Some(piece) = found_piece {
-                out.push((index as u8, piece));
-            }
-        }
-        out
+    async fn find_any_pieces(mut self, key: String) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
+        self.piece_store_cli.get_pieces(key, N as u8).await?
     }
 }

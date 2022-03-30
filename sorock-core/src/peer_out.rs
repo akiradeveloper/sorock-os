@@ -3,16 +3,19 @@ use tonic::transport::Channel;
 
 use lol_core::Uri;
 use proto_compiled::sorock_client::SorockClient;
-use proto_compiled::{IndexedPiece, RequestAnyPiecesReq, RequestPieceReq, SendPieceReq};
+use proto_compiled::{
+    IndexedPiece, PieceExistsReq, RequestAnyPiecesReq, RequestPieceReq, SendPieceReq,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[norpc::service]
 trait PeerOut {
-    fn send_piece(to: Uri, piece: SendPiece);
-    fn request_piece(to: Uri, loc: PieceLocator) -> Option<Vec<u8>>;
-    fn request_any_pieces(to: Uri, key: String) -> Vec<(u8, Vec<u8>)>;
+    fn send_piece(to: Uri, piece: SendPiece) -> std::result::Result<(), SendPieceError>;
+    fn request_piece(to: Uri, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>>;
+    fn request_any_pieces(to: Uri, key: String) -> anyhow::Result<Vec<(u8, Vec<u8>)>>;
+    fn piece_exists(to: Uri, loc: PieceLocator) -> anyhow::Result<bool>;
 }
 define_client!(PeerOut);
 
@@ -60,19 +63,43 @@ struct App {
 
 #[norpc::async_trait]
 impl PeerOut for App {
-    async fn send_piece(self, to: Uri, piece: SendPiece) {
+    async fn send_piece(
+        self,
+        to: Uri,
+        piece: SendPiece,
+    ) -> std::result::Result<(), SendPieceError> {
         let chan = self.state.connect(to).await;
         let mut cli = SorockClient::new(chan);
-        cli.send_piece(SendPieceReq {
-            data: piece.data,
-            key: piece.loc.key,
-            index: piece.loc.index as u32,
-            version: piece.version,
-        })
-        .await
-        .unwrap();
+        let rep = cli
+            .send_piece(SendPieceReq {
+                data: piece.data,
+                key: piece.loc.key,
+                index: piece.loc.index as u32,
+                version: piece.version,
+            })
+            .await
+            .map_err(|_| SendPieceError::Failed)?;
+        let rep = rep.into_inner();
+        match rep.error_code {
+            0 => Ok(()),
+            -1 => Err(SendPieceError::Rejected),
+            -2 => Err(SendPieceError::Failed),
+            _ => unreachable!(),
+        }
     }
-    async fn request_piece(self, to: Uri, loc: PieceLocator) -> Option<Vec<u8>> {
+    async fn piece_exists(self, to: Uri, loc: PieceLocator) -> anyhow::Result<bool> {
+        let chan = self.state.connect(to).await;
+        let mut cli = SorockClient::new(chan);
+        let rep = cli
+            .piece_exists(PieceExistsReq {
+                key: loc.key,
+                index: loc.index as u32,
+            })
+            .await?;
+        let rep = rep.into_inner();
+        Ok(rep.exists)
+    }
+    async fn request_piece(self, to: Uri, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
         let chan = self.state.connect(to).await;
         let mut cli = SorockClient::new(chan);
         let rep = cli
@@ -80,23 +107,19 @@ impl PeerOut for App {
                 key: loc.key,
                 index: loc.index as u32,
             })
-            .await
-            .unwrap();
+            .await?;
         let rep = rep.into_inner();
-        rep.data
+        Ok(rep.data)
     }
-    async fn request_any_pieces(self, to: Uri, key: String) -> Vec<(u8, Vec<u8>)> {
+    async fn request_any_pieces(self, to: Uri, key: String) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
         let chan = self.state.connect(to).await;
         let mut cli = SorockClient::new(chan);
-        let rep = cli
-            .request_any_pieces(RequestAnyPiecesReq { key })
-            .await
-            .unwrap();
+        let rep = cli.request_any_pieces(RequestAnyPiecesReq { key }).await?;
         let rep = rep.into_inner();
         let mut out = vec![];
         for IndexedPiece { index, data } in rep.pieces {
             out.push((index as u8, data));
         }
-        out
+        Ok(out)
     }
 }

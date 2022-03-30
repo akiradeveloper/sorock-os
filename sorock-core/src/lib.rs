@@ -1,5 +1,6 @@
 #![deny(unused_must_use)]
 
+use anyhow::Result;
 use bytes::Bytes;
 use lol_core::Uri;
 
@@ -12,14 +13,13 @@ macro_rules! define_client {
     };
 }
 
-mod safe_future;
-use safe_future::into_safe_future;
 pub mod cluster_in;
 mod cluster_map;
 pub mod io_front;
 pub mod peer_in;
 pub mod peer_out;
 pub mod piece_store;
+pub mod rebuild_queue;
 pub mod stabilizer;
 pub mod storage_service;
 use cluster_map::ClusterMap;
@@ -52,7 +52,7 @@ impl Command {
     }
 }
 
-#[derive(Clone, Hash, Debug)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct PieceLocator {
     pub key: String,
     pub index: u8,
@@ -62,6 +62,13 @@ pub struct SendPiece {
     pub version: u64,
     pub loc: PieceLocator,
     pub data: Option<Bytes>,
+}
+#[derive(thiserror::Error, Debug)]
+pub enum SendPieceError {
+    #[error("send-piece with older version was rejected.")]
+    Rejected,
+    #[error("failed any way")]
+    Failed,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Hash, PartialEq, Eq)]

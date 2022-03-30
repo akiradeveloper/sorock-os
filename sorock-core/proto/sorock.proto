@@ -36,6 +36,16 @@ message SendPieceReq {
 	uint32 index = 3;
 	uint64 version = 4;
 }
+message SendPieceRep {
+	sint32 error_code = 1;
+}
+message PieceExistsReq {
+	string key = 1;
+	uint32 index = 2;
+}
+message PieceExistsRep {
+	bool exists = 1;
+}
 message RequestPieceReq {
 	string key = 1;
 	uint32 index = 2;
@@ -61,7 +71,8 @@ service Sorock {
 	rpc Delete (DeleteReq) returns (google.protobuf.Empty);
 	rpc AddNode (AddNodeReq) returns (google.protobuf.Empty);
 	rpc RemoveNode (RemoveNodeReq) returns (google.protobuf.Empty);
-	rpc SendPiece (SendPieceReq) returns (google.protobuf.Empty);
+	rpc PieceExists (PieceExistsReq) returns (PieceExistsRep);
+	rpc SendPiece (SendPieceReq) returns (SendPieceRep);
 	rpc RequestPiece (RequestPieceReq) returns (RequestPieceRep);
 	rpc RequestAnyPieces (RequestAnyPiecesReq) returns (RequestAnyPiecesRep);
 	rpc SanityCheck (SanityCheckReq) returns (SanityCheckRep);
