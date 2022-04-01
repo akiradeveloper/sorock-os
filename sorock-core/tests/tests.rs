@@ -1,5 +1,5 @@
 use sorock_core::*;
-mod mem_piece_store;
+use sorock_core::piece_store::mem as mem_piece_store;
 
 use bytes::Bytes;
 use lol_core::Uri;

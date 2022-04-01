@@ -1,5 +1,7 @@
 use crate::*;
 
+pub mod mem;
+
 #[norpc::service]
 trait PieceStore {
     fn get_pieces(key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>>;
