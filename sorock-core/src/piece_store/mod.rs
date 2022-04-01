@@ -1,6 +1,7 @@
 use crate::*;
 
 pub mod mem;
+pub mod sqlite;
 
 #[norpc::service]
 trait PieceStore {
