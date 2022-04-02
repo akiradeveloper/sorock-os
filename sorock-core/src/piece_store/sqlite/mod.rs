@@ -3,6 +3,7 @@ use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::sqlite::SqlitePool;
 use sqlx::ConnectOptions;
 use sqlx::Executor;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -128,10 +129,11 @@ impl piece_store::PieceStore for App {
         let keys = sqlx::query_as::<_, Key>(q)
             .fetch_all(&self.state.db_pool)
             .await?;
-        let mut out = vec![];
+        let mut out = HashSet::new();
         for key in keys {
-            out.push(key.key);
+            out.insert(key.key);
         }
+        let out = out.into_iter().collect();
         Ok(out)
     }
 }
@@ -140,6 +142,8 @@ impl piece_store::PieceStore for App {
 async fn test_sqlite_store() -> anyhow::Result<()> {
     let state = State::new(StoreType::Memory).await;
     let mut cli = spawn(state);
+
+    // empty
     assert_eq!(cli.keys().await??.len(), 0);
     assert_eq!(cli.get_pieces("a".to_string(), 8).await??, vec![]);
     assert_eq!(
@@ -150,5 +154,73 @@ async fn test_sqlite_store() -> anyhow::Result<()> {
         .await??,
         false
     );
+
+    // put (a,1)
+    cli.put_piece(
+        PieceLocator {
+            key: "a".to_string(),
+            index: 1,
+        },
+        vec![0, 0, 0, 0].into(),
+    )
+    .await??;
+    assert_eq!(cli.keys().await??.len(), 1);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 1);
+    assert_eq!(
+        cli.piece_exists(PieceLocator {
+            key: "a".to_string(),
+            index: 1
+        })
+        .await??,
+        true
+    );
+    assert_eq!(
+        cli.piece_exists(PieceLocator {
+            key: "a".to_string(),
+            index: 0
+        })
+        .await??,
+        false
+    );
+
+    // put (a,2)
+    cli.put_piece(
+        PieceLocator {
+            key: "a".to_string(),
+            index: 2,
+        },
+        vec![0, 0, 0, 0].into(),
+    )
+    .await??;
+    assert_eq!(cli.keys().await??.len(), 1);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 2);
+    assert_eq!(
+        cli.piece_exists(PieceLocator {
+            key: "a".to_string(),
+            index: 2
+        })
+        .await??,
+        true
+    );
+
+    // put (b,3)
+    cli.put_piece(
+        PieceLocator {
+            key: "b".to_string(),
+            index: 3,
+        },
+        vec![0, 0, 0, 0].into(),
+    )
+    .await??;
+    assert_eq!(cli.keys().await??.len(), 2);
+    assert_eq!(
+        cli.piece_exists(PieceLocator {
+            key: "a".to_string(),
+            index: 3
+        })
+        .await??,
+        false
+    );
+
     Ok(())
 }
