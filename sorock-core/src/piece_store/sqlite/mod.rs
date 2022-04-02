@@ -58,7 +58,7 @@ impl State {
 }
 #[derive(sqlx::FromRow, Debug)]
 struct Rec {
-    index: i64,
+    idx: i64,
     data: Vec<u8>,
 }
 #[derive(sqlx::FromRow, Debug)]
@@ -72,19 +72,19 @@ struct App {
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
     async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
-        let q = "select index, data from sorockdb where key = $1";
+        let q = "select idx, data from sorockdb where key = $1";
         let recs = sqlx::query_as::<_, Rec>(q)
             .bind(key)
             .fetch_all(&self.state.db_pool)
             .await?;
         let mut out = vec![];
-        for Rec { index, data, .. } in recs {
-            out.push((index as u8, data));
+        for Rec { idx, data, .. } in recs {
+            out.push((idx as u8, data));
         }
         Ok(out)
     }
     async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
-        let q = "select index, data from sorockdb where key = $1 and index = $2";
+        let q = "select idx, data from sorockdb where key = $1 and idx = $2";
         let rec = sqlx::query_as::<_, Rec>(q)
             .bind(loc.key)
             .bind(loc.index)
@@ -96,7 +96,7 @@ impl piece_store::PieceStore for App {
         }
     }
     async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
-        let q = "select count(*) from sorockdb where key = $1 and index = $2";
+        let q = "select count(*) from sorockdb where key = $1 and idx = $2";
         let rec: (i32,) = sqlx::query_as(q)
             .bind(loc.key)
             .bind(loc.index)
@@ -105,7 +105,7 @@ impl piece_store::PieceStore for App {
         Ok(rec.0 > 0)
     }
     async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
-        let q = "insert into sorockdb (key, index, data) values ($1, $2, $3)";
+        let q = "insert into sorockdb (key, idx, data) values ($1, $2, $3)";
         sqlx::query(q)
             .bind(loc.key)
             .bind(loc.index)
@@ -115,7 +115,7 @@ impl piece_store::PieceStore for App {
         Ok(())
     }
     async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
-        let q = "delete from sorockdb where key = $1 and index = $2";
+        let q = "delete from sorockdb where key = $1 and idx = $2";
         sqlx::query(q)
             .bind(loc.key)
             .bind(loc.index)
