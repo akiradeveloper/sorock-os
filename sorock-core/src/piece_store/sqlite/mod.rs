@@ -31,10 +31,10 @@ pub struct State {
     db_pool: SqlitePool,
 }
 impl State {
-    pub async fn create(typ: StoreType) -> Self {
+    pub async fn new(typ: StoreType) -> Self {
         let options = match typ {
             StoreType::Memory => {
-                let mut options = SqliteConnectOptions::from_str(":memory").unwrap();
+                let mut options = SqliteConnectOptions::from_str(":memory:").unwrap();
                 options
             }
             StoreType::Directory { root_dir } => {
@@ -134,4 +134,21 @@ impl piece_store::PieceStore for App {
         }
         Ok(out)
     }
+}
+
+#[tokio::test]
+async fn test_sqlite_store() -> anyhow::Result<()> {
+    let state = State::new(StoreType::Memory).await;
+    let mut cli = spawn(state);
+    assert_eq!(cli.keys().await??.len(), 0);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await??, vec![]);
+    assert_eq!(
+        cli.piece_exists(PieceLocator {
+            key: "a".to_string(),
+            index: 1
+        })
+        .await??,
+        false
+    );
+    Ok(())
 }
