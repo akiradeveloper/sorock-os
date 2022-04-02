@@ -55,8 +55,9 @@ struct App {
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
     async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
-        let q = "select key, u8, data from sorock_db where key = key";
+        let q = "select key, u8, data from sorockdb where key = $1";
         let recs = sqlx::query_as::<_, Rec>(q)
+            .bind(key)
             .fetch_all(&self.state.db_pool)
             .await?;
         let mut out = vec![];
@@ -72,7 +73,17 @@ impl piece_store::PieceStore for App {
         unimplemented!()
     }
     async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
-        unimplemented!()
+        let mut tx = self.state.db_pool.begin().await?;
+        let q = "insert into sorockdb (key, index, data) values ($1, $2, $3)";
+        sqlx::query(q)
+            .bind(loc.key)
+            .bind(loc.index)
+            .bind(data.as_ref())
+            .persistent(false)
+            .execute(&mut tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
     }
     async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
         unimplemented!()
