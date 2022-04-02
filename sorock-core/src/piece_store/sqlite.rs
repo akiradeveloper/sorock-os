@@ -42,6 +42,12 @@ impl State {
         Self { db_pool }
     }
 }
+#[derive(sqlx::FromRow, Debug)]
+struct Rec {
+    key: String,
+    index: i64,
+    data: Vec<u8>,
+}
 #[derive(Clone)]
 struct App {
     state: Arc<State>,
@@ -49,7 +55,15 @@ struct App {
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
     async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
-        unimplemented!()
+        let q = "select key, u8, data from sorock_db where key = key";
+        let recs = sqlx::query_as::<_, Rec>(q)
+            .fetch_all(&self.state.db_pool)
+            .await?;
+        let mut out = vec![];
+        for Rec { index, data, .. } in recs {
+            out.push((index as u8, data));
+        }
+        Ok(out)
     }
     async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
         unimplemented!()
