@@ -35,7 +35,6 @@ impl State {
         };
 
         let db_pool = SqlitePool::connect_with(options).await.unwrap();
-
         let q = include_str!("./schema.sql");
         db_pool.execute(q).await.unwrap();
 
@@ -59,7 +58,7 @@ struct App {
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
     async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
-        let q = "select key, u8, data from sorockdb where key = $1";
+        let q = "select key, index, data from sorockdb where key = $1";
         let recs = sqlx::query_as::<_, Rec>(q)
             .bind(key)
             .fetch_all(&self.state.db_pool)
@@ -71,7 +70,16 @@ impl piece_store::PieceStore for App {
         Ok(out)
     }
     async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
-        unimplemented!()
+        let q = "select key, index, data from sorockdb where key = $1 and index= $2";
+        let rec = sqlx::query_as::<_, Rec>(q)
+            .bind(loc.key)
+            .bind(loc.index)
+            .fetch_optional(&self.state.db_pool)
+            .await?;
+        match rec {
+            None => Ok(None),
+            Some(rec) => Ok(Some(rec.data)),
+        }
     }
     async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
         unimplemented!()
