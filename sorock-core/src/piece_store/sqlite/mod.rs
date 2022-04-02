@@ -7,6 +7,21 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
+pub fn spawn(state: State) -> piece_store::ClientT {
+    use norpc::runtime::send::*;
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
+    tokio::spawn(async {
+        let svc = App {
+            state: state.into(),
+        };
+        let service = piece_store::PieceStoreService::new(svc);
+        let server = ServerExecutor::new(rx, service);
+        server.serve().await
+    });
+    let chan = ClientService::new(tx);
+    piece_store::PieceStoreClient::new(chan)
+}
+
 pub enum StoreType {
     Memory,
     // If the root_dir is empty then a new db is created.
