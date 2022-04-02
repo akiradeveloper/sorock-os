@@ -25,7 +25,8 @@ async fn start_server(port: u16) {
     let uri = uri(port);
     let peer_out_cli = peer_out::spawn(peer_out::State::new());
     let io_front_cli = io_front::spawn(peer_out_cli.clone(), io_front::State::new());
-    let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
+    // let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
+    let piece_store_cli = piece_store::sqlite::spawn(piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Memory).await);
     let stabilizer_cli = stabilizer::spawn(
         piece_store_cli.clone(),
         peer_out_cli.clone(),
