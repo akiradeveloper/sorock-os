@@ -5,6 +5,7 @@ use sqlx::ConnectOptions;
 use sqlx::Executor;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub enum StoreType {
     Memory,
@@ -39,5 +40,30 @@ impl State {
         db_pool.execute(q).await.unwrap();
 
         Self { db_pool }
+    }
+}
+#[derive(Clone)]
+struct App {
+    state: Arc<State>,
+}
+#[norpc::async_trait]
+impl piece_store::PieceStore for App {
+    async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
+        unimplemented!()
+    }
+    async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
+        unimplemented!()
+    }
+    async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
+        unimplemented!()
+    }
+    async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
+        unimplemented!()
+    }
+    async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
+        unimplemented!()
+    }
+    async fn keys(self) -> anyhow::Result<Vec<String>> {
+        unimplemented!()
     }
 }
