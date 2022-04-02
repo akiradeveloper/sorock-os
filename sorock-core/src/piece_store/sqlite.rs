@@ -48,6 +48,10 @@ struct Rec {
     index: i64,
     data: Vec<u8>,
 }
+#[derive(sqlx::FromRow, Debug)]
+struct Key {
+    key: String,
+}
 #[derive(Clone)]
 struct App {
     state: Arc<State>,
@@ -89,6 +93,14 @@ impl piece_store::PieceStore for App {
         unimplemented!()
     }
     async fn keys(self) -> anyhow::Result<Vec<String>> {
-        unimplemented!()
+        let q = "select key from sorockdb";
+        let keys = sqlx::query_as::<_, Key>(q)
+            .fetch_all(&self.state.db_pool)
+            .await?;
+        let mut out = vec![];
+        for key in keys {
+            out.push(key.key);
+        }
+        Ok(out)
     }
 }
