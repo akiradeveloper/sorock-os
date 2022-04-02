@@ -355,7 +355,7 @@ async fn text_expand_once() {
     cluster.add_node(uri, 1.0).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(200);
+    let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
@@ -385,7 +385,7 @@ async fn text_expand_once_10_node() {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(200);
+    let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
@@ -415,7 +415,7 @@ async fn test_shrink_once() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(200);
+    let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
@@ -448,7 +448,7 @@ async fn test_expanding_cluster() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(1);
+    let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
