@@ -222,5 +222,23 @@ async fn test_sqlite_store() -> anyhow::Result<()> {
         false
     );
 
+    // delete (a,1)
+    cli.delete_piece(PieceLocator {
+        key: "a".to_string(),
+        index: 1,
+    })
+    .await??;
+    assert_eq!(cli.keys().await??.len(), 2);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 1);
+
+    // delete (a,2)
+    cli.delete_piece(PieceLocator {
+        key: "a".to_string(),
+        index: 2,
+    })
+    .await??;
+    assert_eq!(cli.keys().await??.len(), 1);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 0);
+
     Ok(())
 }
