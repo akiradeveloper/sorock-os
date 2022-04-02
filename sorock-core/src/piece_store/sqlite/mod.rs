@@ -43,7 +43,6 @@ impl State {
 }
 #[derive(sqlx::FromRow, Debug)]
 struct Rec {
-    key: String,
     index: i64,
     data: Vec<u8>,
 }
@@ -58,7 +57,7 @@ struct App {
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
     async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
-        let q = "select key, index, data from sorockdb where key = $1";
+        let q = "select index, data from sorockdb where key = $1";
         let recs = sqlx::query_as::<_, Rec>(q)
             .bind(key)
             .fetch_all(&self.state.db_pool)
@@ -70,7 +69,7 @@ impl piece_store::PieceStore for App {
         Ok(out)
     }
     async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
-        let q = "select key, index, data from sorockdb where key = $1 and index= $2";
+        let q = "select index, data from sorockdb where key = $1 and index = $2";
         let rec = sqlx::query_as::<_, Rec>(q)
             .bind(loc.key)
             .bind(loc.index)
@@ -82,23 +81,32 @@ impl piece_store::PieceStore for App {
         }
     }
     async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
-        unimplemented!()
+        let q = "select count(*) from sorockdb where key = $1 and index = $2";
+        let rec: (i32,) = sqlx::query_as(q)
+            .bind(loc.key)
+            .bind(loc.index)
+            .fetch_one(&self.state.db_pool)
+            .await?;
+        Ok(rec.0 > 0)
     }
     async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
-        let mut tx = self.state.db_pool.begin().await?;
         let q = "insert into sorockdb (key, index, data) values ($1, $2, $3)";
         sqlx::query(q)
             .bind(loc.key)
             .bind(loc.index)
             .bind(data.as_ref())
-            .persistent(false)
-            .execute(&mut tx)
+            .execute(&self.state.db_pool)
             .await?;
-        tx.commit().await?;
         Ok(())
     }
     async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
-        unimplemented!()
+        let q = "delete from sorockdb where key = $1 and index = $2";
+        sqlx::query(q)
+            .bind(loc.key)
+            .bind(loc.index)
+            .execute(&self.state.db_pool)
+            .await?;
+        Ok(())
     }
     async fn keys(self) -> anyhow::Result<Vec<String>> {
         let q = "select key from sorockdb";
