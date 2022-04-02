@@ -36,7 +36,7 @@ impl State {
 
         let db_pool = SqlitePool::connect_with(options).await.unwrap();
 
-        let q = include_str!("./sqlite_schema.sql");
+        let q = include_str!("./schema.sql");
         db_pool.execute(q).await.unwrap();
 
         Self { db_pool }
