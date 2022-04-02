@@ -11,11 +11,11 @@ The name comes from [Soroku Ebara](https://en.wikipedia.org/wiki/Ebara_Soroku), 
 ## Features
 
 - Containerized.
-- Erasure Coding for data resiliency.
-- [ASURA](https://github.com/akiradeveloper/ASURA) instead of consistent-hashing for calculating holder nodes.
+- gRPC API is defined for applications to access the storage.
+- Erasure Coding is used for data resiliency.
 - Cluster configuration is replicated by [Raft](https://github.akiradeveloper/lol) for faster propagation than Gossip.
 - Automatic stabilization on cluster change.
-- Automatic failure detection by SWIM.
+- Automatic failure detection based on "On Scalable and Efficient Distributed Failure Detectors (2001)".
 - Automatic data rebuild on node failure.
 
 ## Author
