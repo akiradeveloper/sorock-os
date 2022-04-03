@@ -244,3 +244,11 @@ async fn test_sqlite_store() -> anyhow::Result<()> {
     let mut cli = spawn(state);
     test_piece_store(cli).await
 }
+
+#[tokio::test]
+async fn test_sqlite_store_dir() -> anyhow::Result<()> {
+    let root_dir = todo!();
+    let state = State::new(StoreType::Directory { root_dir }).await;
+    let mut cli = spawn(state);
+    test_piece_store(cli).await
+}
