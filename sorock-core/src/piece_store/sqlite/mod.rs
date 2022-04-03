@@ -138,12 +138,7 @@ impl piece_store::PieceStore for App {
     }
 }
 
-#[tokio::test]
-async fn test_sqlite_store() -> anyhow::Result<()> {
-    let state = State::new(StoreType::Memory).await;
-    let mut cli = spawn(state);
-
-    // empty
+async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
     assert_eq!(cli.keys().await??.len(), 0);
     assert_eq!(cli.get_pieces("a".to_string(), 8).await??, vec![]);
     assert_eq!(
@@ -241,4 +236,11 @@ async fn test_sqlite_store() -> anyhow::Result<()> {
     assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 0);
 
     Ok(())
+}
+
+#[tokio::test]
+async fn test_sqlite_store() -> anyhow::Result<()> {
+    let state = State::new(StoreType::Memory).await;
+    let mut cli = spawn(state);
+    test_piece_store(cli).await
 }
