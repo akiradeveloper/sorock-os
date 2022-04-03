@@ -239,7 +239,7 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn test_sqlite_store() -> anyhow::Result<()> {
+async fn test_sqlite_store_mem() -> anyhow::Result<()> {
     let state = State::new(StoreType::Memory).await;
     let cli = spawn(state);
     test_piece_store(cli).await
