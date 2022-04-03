@@ -241,14 +241,15 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_sqlite_store() -> anyhow::Result<()> {
     let state = State::new(StoreType::Memory).await;
-    let mut cli = spawn(state);
+    let cli = spawn(state);
     test_piece_store(cli).await
 }
 
 #[tokio::test]
 async fn test_sqlite_store_dir() -> anyhow::Result<()> {
-    let root_dir = todo!();
+    let tempdir = tempfile::tempdir()?;
+    let root_dir = tempdir.path().to_owned();
     let state = State::new(StoreType::Directory { root_dir }).await;
-    let mut cli = spawn(state);
+    let cli = spawn(state);
     test_piece_store(cli).await
 }
