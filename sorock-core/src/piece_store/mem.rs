@@ -21,19 +21,9 @@ pub fn spawn(state: State) -> piece_store::ClientT {
 }
 
 #[tokio::test]
-async fn test_piece_store() {
+async fn test_piece_store_hashmap() -> anyhow::Result<()> {
     let mut cli = spawn(State::new());
-    let loc = PieceLocator {
-        key: "ABC".to_string(),
-        index: 3,
-    };
-    let data = Bytes::copy_from_slice(&[1, 2, 3]);
-    assert_eq!(cli.get_piece(loc.clone()).await.unwrap().unwrap(), None);
-    cli.put_piece(loc.clone(), data).await.unwrap().unwrap();
-    assert_eq!(
-        cli.get_piece(loc.clone()).await.unwrap().unwrap(),
-        Some(vec![1, 2, 3])
-    );
+    piece_store::test_piece_store(cli).await
 }
 
 struct Bucket {
