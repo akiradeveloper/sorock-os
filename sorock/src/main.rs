@@ -5,6 +5,8 @@ use sorock_core::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // TODO create blocker file
+
     let mut builder = tonic::transport::Server::builder();
     let socket = tokio::net::lookup_host("0.0.0.0:50000")
         .await
@@ -35,6 +37,8 @@ async fn main() -> anyhow::Result<()> {
         })
         .await
         .expect("couldn't start the server.");
+
+    // TODO remove blocker file
 
     Ok(())
 }
