@@ -49,6 +49,27 @@ async fn main() -> anyhow::Result<()> {
         storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone());
     let svc1 = storage_service::make_service(server).await;
 
+    // Failure Detector Service
+
+    use failure_detector as FD;
+    let peer_out_cli = FD::peer_out::spawn(FD::peer_out::State::new());
+    let app_out_cli = todo!();
+    let queue_cli = FD::queue::spawn(peer_out_cli, app_out_cli, FD::queue::State::new());
+    let reporter_cli =
+        FD::reporter::spawn(queue_cli.clone(), FD::reporter::State::new(uri.clone()));
+    let mut app_in_cli = FD::app_in::spawn(queue_cli.clone(), reporter_cli.clone());
+    let svc2 = FD::server::make_service(FD::server::Server { peer_out_cli, uri }).await;
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_millis(100));
+        let mut reporter_cli = reporter_cli.clone();
+        let mut queue_cli = queue_cli.clone();
+        loop {
+            interval.tick().await;
+            reporter_cli.run_once().await.unwrap();
+            queue_cli.run_once().await.unwrap();
+        }
+    });
+
     // Raft Service
 
     let cluster_in_cli =
@@ -60,15 +81,13 @@ async fn main() -> anyhow::Result<()> {
         .compaction_interval_sec(0)
         .build()
         .unwrap();
-    let svc2 = lol_core::make_raft_service(
+    let svc3 = lol_core::make_raft_service(
         raft_app,
         lol_core::storage::memory::Storage::new(),
         uri,
         config,
     )
     .await;
-
-    // Failure Detector Service
 
     let mut signals = Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -85,6 +104,8 @@ async fn main() -> anyhow::Result<()> {
     });
     builder
         .add_service(svc1)
+        .add_service(svc2)
+        .add_service(svc3)
         .serve_with_shutdown(socket, async {
             rx.await.ok();
         })

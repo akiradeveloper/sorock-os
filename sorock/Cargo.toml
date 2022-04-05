@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 lol-core = { git = "https://github.com/akiradeveloper/lol", features = ["simple", "rocksdb"] }
 sorock-core = { path = "../sorock-core" }
+failure-detector = { path = "../failure-detector" }
 tokio = { version = "1.10", features = ["full"] }
 tonic = "0.6"
 signal-hook = "0.3"
