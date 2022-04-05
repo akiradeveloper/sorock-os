@@ -1,7 +1,9 @@
 use futures::stream::StreamExt;
+use lol_core::Uri;
 use signal_hook::consts::signal::*;
 use signal_hook_tokio::Signals;
 use sorock_core::*;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -14,8 +16,59 @@ async fn main() -> anyhow::Result<()> {
         .next()
         .expect("couldn't resolve socket address.");
 
-    let server = todo!();
+    let uri: Uri = todo!();
+
+    // Storage Service
+
+    let peer_out_cli = peer_out::spawn(peer_out::State::new());
+    let io_front_cli = io_front::spawn(peer_out_cli.clone(), io_front::State::new());
+    // let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
+    let piece_store_cli = piece_store::sqlite::spawn(
+        piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Memory).await,
+    );
+    let stabilizer_cli = stabilizer::spawn(
+        piece_store_cli.clone(),
+        peer_out_cli.clone(),
+        stabilizer::State::new(uri.clone()),
+    );
+    stabilizer::spawn_tick(stabilizer_cli.clone(), Duration::from_millis(100));
+    let rebuild_queue_cli = rebuild_queue::spawn(
+        piece_store_cli.clone(),
+        peer_out_cli.clone(),
+        stabilizer_cli.clone(),
+        rebuild_queue::State::new(),
+    );
+    rebuild_queue::spawn_tick(rebuild_queue_cli.clone(), Duration::from_millis(500));
+    let peer_in_cli = peer_in::spawn(
+        piece_store_cli,
+        stabilizer_cli.clone(),
+        rebuild_queue_cli.clone(),
+        peer_in::State::new(),
+    );
+    let server =
+        storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone());
     let svc1 = storage_service::make_service(server).await;
+
+    // Raft Service
+
+    let cluster_in_cli =
+        cluster_in::spawn(io_front_cli, stabilizer_cli, peer_in_cli, rebuild_queue_cli);
+    let raft_app = raft_service::App::new(cluster_in_cli);
+    let raft_app =
+        lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::BytesRepository::new());
+    let config = lol_core::ConfigBuilder::default()
+        .compaction_interval_sec(0)
+        .build()
+        .unwrap();
+    let svc2 = lol_core::make_raft_service(
+        raft_app,
+        lol_core::storage::memory::Storage::new(),
+        uri,
+        config,
+    )
+    .await;
+
+    // Failure Detector Service
 
     let mut signals = Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;
     let (tx, rx) = tokio::sync::oneshot::channel();
