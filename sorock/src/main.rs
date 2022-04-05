@@ -72,8 +72,13 @@ async fn main() -> anyhow::Result<()> {
 
     // Raft Service
 
-    let cluster_in_cli =
-        cluster_in::spawn(io_front_cli, stabilizer_cli, peer_in_cli, rebuild_queue_cli);
+    let cluster_in_cli = cluster_in::spawn(
+        io_front_cli,
+        stabilizer_cli,
+        peer_in_cli,
+        rebuild_queue_cli,
+        app_in_cli,
+    );
     let raft_app = raft_service::App::new(cluster_in_cli);
     let raft_app =
         lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::BytesRepository::new());

@@ -52,8 +52,14 @@ async fn start_server(port: u16) {
         storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone());
     let svc1 = storage_service::make_service(server).await;
 
-    let cluster_in_cli =
-        cluster_in::spawn(io_front_cli, stabilizer_cli, peer_in_cli, rebuild_queue_cli);
+    let app_in_cli = fd_app_in_stub::spawn();
+    let cluster_in_cli = cluster_in::spawn(
+        io_front_cli,
+        stabilizer_cli,
+        peer_in_cli,
+        rebuild_queue_cli,
+        app_in_cli,
+    );
     let raft_app = raft_service::App::new(cluster_in_cli);
     let raft_app =
         lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::BytesRepository::new());
@@ -76,6 +82,31 @@ async fn start_server(port: u16) {
         .serve(socket)
         .await
         .expect("failed to start a server");
+}
+
+mod fd_app_in_stub {
+    use failure_detector::app_in as M;
+    use lol_core::Uri;
+    use std::collections::HashSet;
+
+    #[derive(Clone)]
+    struct App;
+    #[norpc::async_trait]
+    impl M::AppIn for App {
+        async fn set_new_cluster(mut self, cluster: HashSet<Uri>) {}
+    }
+    pub fn spawn() -> M::ClientT {
+        use norpc::runtime::send::*;
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        tokio::spawn(async {
+            let svc = App {};
+            let service = M::AppInService::new(svc);
+            let server = ServerExecutor::new(rx, service);
+            server.serve().await
+        });
+        let chan = ClientService::new(tx);
+        M::AppInClient::new(chan)
+    }
 }
 
 struct Cluster {
