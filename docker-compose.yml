@@ -1,0 +1,10 @@
+version: '3'
+volumes:
+  vol0:
+services:
+  nd0:
+    image: sorock:dev
+    enviroment:
+      URI: https://nd0:50000
+    volumes:
+      - vol0:/var/lib/sorock/data
