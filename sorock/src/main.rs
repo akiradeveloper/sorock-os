@@ -6,9 +6,16 @@ use sorock_core::*;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+#[derive(serde::Deserialize, Debug)]
+struct Config {
+    #[serde(with = "http_serde::uri")]
+    uri: tonic::transport::Uri
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // TODO create blocker file
+    let config = envy::from_env::<Config>()?;
+    let uri = config.uri;
 
     let SOROCKDB_ROOT = Path::new("/var/lib/sorock/data");
     if SOROCKDB_ROOT.join("dead_flag").exists() {
@@ -30,14 +37,7 @@ async fn main() -> anyhow::Result<()> {
         piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Directory { root_dir: piecedb }).await;
     }
 
-    let mut builder = tonic::transport::Server::builder();
-    let socket = tokio::net::lookup_host("0.0.0.0:50000")
-        .await
-        .unwrap()
-        .next()
-        .expect("couldn't resolve socket address.");
 
-    let uri: Uri = todo!();
 
     // Storage Service
 
@@ -130,6 +130,13 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
+    let mut builder = tonic::transport::Server::builder();
+    let socket_addr = format!("0.0.0.0:{port}", port = uri.port().expect("URI should have a port"));
+    let socket = tokio::net::lookup_host(socket_addr)
+        .await
+        .unwrap()
+        .next()
+        .expect("couldn't resolve socket address.");
     builder
         .add_service(svc1)
         .add_service(svc2)
