@@ -11,10 +11,24 @@ async fn main() -> anyhow::Result<()> {
     // TODO create blocker file
 
     let SOROCKDB_ROOT = Path::new("/var/lib/sorock/data");
-    if SOROCKDB_ROOT.join("dead").exists() {
+    if SOROCKDB_ROOT.join("dead_flag").exists() {
         anyhow::bail!("This node can't not be restarted because if failed in the previous shutdown. Please clean the volume.");
     }
-    std::fs::write(SOROCKDB_ROOT.join("dead"), "")?;
+    std::fs::write(SOROCKDB_ROOT.join("dead_flag"), "")?;
+
+    if !SOROCKDB_ROOT.join("init").exists() {
+        std::fs::write(SOROCKDB_ROOT.join("init"), "")?;
+
+        let snapshots = SOROCKDB_ROOT.join("snapshots");
+        lol_core::simple::FileRepository::create(&snapshots)?;
+
+        let raft_log = SOROCKDB_ROOT.join("raft_log");
+	    lol_core::storage::rocksdb::Storage::create(&raft_log)?;
+
+        let piecedb = SOROCKDB_ROOT.join("piecedb");
+        std::fs::create_dir(&piecedb)?;
+        piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Directory { root_dir: piecedb }).await;
+    }
 
     let mut builder = tonic::transport::Server::builder();
     let socket = tokio::net::lookup_host("0.0.0.0:50000")
@@ -124,7 +138,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("couldn't start the server.");
 
-    std::fs::remove_file(SOROCKDB_ROOT.join("dead"))?;
+    std::fs::remove_file(SOROCKDB_ROOT.join("dead_flag"))?;
 
     Ok(())
 }

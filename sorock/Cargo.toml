@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lol-core = { git = "https://github.com/akiradeveloper/lol", features = ["simple", "rocksdb"] }
+lol-core = { git = "https://github.com/akiradeveloper/lol", features = ["simple", "rocksdb-backend"] }
 sorock-core = { path = "../sorock-core" }
 failure-detector = { path = "../failure-detector" }
 tokio = { version = "1.10", features = ["full"] }
