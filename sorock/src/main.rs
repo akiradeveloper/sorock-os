@@ -9,7 +9,7 @@ use std::time::Duration;
 #[derive(serde::Deserialize, Debug)]
 struct Config {
     #[serde(with = "http_serde::uri")]
-    uri: tonic::transport::Uri
+    uri: tonic::transport::Uri,
 }
 
 #[tokio::main]
@@ -23,21 +23,22 @@ async fn main() -> anyhow::Result<()> {
     }
     std::fs::write(SOROCKDB_ROOT.join("dead_flag"), "")?;
 
-    if !SOROCKDB_ROOT.join("init").exists() {
-        std::fs::write(SOROCKDB_ROOT.join("init"), "")?;
-
+    if !SOROCKDB_ROOT.join("init_flag").exists() {
         let snapshots = SOROCKDB_ROOT.join("snapshots");
         lol_core::simple::FileRepository::create(&snapshots)?;
 
         let raft_log = SOROCKDB_ROOT.join("raft_log");
-	    lol_core::storage::rocksdb::Storage::create(&raft_log)?;
+        lol_core::storage::rocksdb::Storage::create(&raft_log)?;
 
         let piecedb = SOROCKDB_ROOT.join("piecedb");
         std::fs::create_dir(&piecedb)?;
-        piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Directory { root_dir: piecedb }).await;
+        piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Directory {
+            root_dir: piecedb,
+        })
+        .await;
+
+        std::fs::write(SOROCKDB_ROOT.join("init_flag"), "")?;
     }
-
-
 
     // Storage Service
 
@@ -46,8 +47,9 @@ async fn main() -> anyhow::Result<()> {
     // let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
     let piece_store_cli = piece_store::sqlite::spawn(
         piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Directory {
-            root_dir: SOROCKDB_ROOT.join("piecedb")
-        }).await,
+            root_dir: SOROCKDB_ROOT.join("piecedb"),
+        })
+        .await,
     );
     let stabilizer_cli = stabilizer::spawn(
         piece_store_cli.clone(),
@@ -103,8 +105,10 @@ async fn main() -> anyhow::Result<()> {
         app_in_cli,
     );
     let raft_app = raft_service::App::new(cluster_in_cli);
-    let raft_app =
-        lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::FileRepository::open(&SOROCKDB_ROOT.join("snapshots"))?);
+    let raft_app = lol_core::simple::ToRaftApp::new(
+        raft_app,
+        lol_core::simple::FileRepository::open(&SOROCKDB_ROOT.join("snapshots"))?,
+    );
     let config = lol_core::ConfigBuilder::default()
         .compaction_interval_sec(0)
         .build()
@@ -130,13 +134,18 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
+
     let mut builder = tonic::transport::Server::builder();
-    let socket_addr = format!("0.0.0.0:{port}", port = uri.port().expect("URI should have a port"));
+    let socket_addr = format!(
+        "0.0.0.0:{port}",
+        port = uri.port().expect("URI should have a port")
+    );
     let socket = tokio::net::lookup_host(socket_addr)
         .await
         .unwrap()
         .next()
         .expect("couldn't resolve socket address.");
+
     builder
         .add_service(svc1)
         .add_service(svc2)
@@ -147,6 +156,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("couldn't start the server.");
 
+    // On successful shutdown, the dead flag is removed.
     std::fs::remove_file(SOROCKDB_ROOT.join("dead_flag"))?;
 
     Ok(())
