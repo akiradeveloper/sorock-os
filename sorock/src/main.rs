@@ -3,11 +3,18 @@ use lol_core::Uri;
 use signal_hook::consts::signal::*;
 use signal_hook_tokio::Signals;
 use sorock_core::*;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // TODO create blocker file
+
+    let SOROCKDB_ROOT = Path::new("/var/lib/sorock/data");
+    if SOROCKDB_ROOT.join("dead").exists() {
+        anyhow::bail!("This node can't not be restarted because if failed in the previous shutdown. Please clean the volume.");
+    }
+    std::fs::write(SOROCKDB_ROOT.join("dead"), "")?;
 
     let mut builder = tonic::transport::Server::builder();
     let socket = tokio::net::lookup_host("0.0.0.0:50000")
@@ -117,7 +124,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("couldn't start the server.");
 
-    // TODO remove blocker file
+    std::fs::remove_file(SOROCKDB_ROOT.join("dead"))?;
 
     Ok(())
 }
