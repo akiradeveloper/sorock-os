@@ -45,7 +45,9 @@ async fn main() -> anyhow::Result<()> {
     let io_front_cli = io_front::spawn(peer_out_cli.clone(), io_front::State::new());
     // let piece_store_cli = mem_piece_store::spawn(mem_piece_store::State::new());
     let piece_store_cli = piece_store::sqlite::spawn(
-        piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Memory).await,
+        piece_store::sqlite::State::new(piece_store::sqlite::StoreType::Directory {
+            root_dir: SOROCKDB_ROOT.join("piecedb")
+        }).await,
     );
     let stabilizer_cli = stabilizer::spawn(
         piece_store_cli.clone(),
@@ -102,14 +104,14 @@ async fn main() -> anyhow::Result<()> {
     );
     let raft_app = raft_service::App::new(cluster_in_cli);
     let raft_app =
-        lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::BytesRepository::new());
+        lol_core::simple::ToRaftApp::new(raft_app, lol_core::simple::FileRepository::open(&SOROCKDB_ROOT.join("snapshots"))?);
     let config = lol_core::ConfigBuilder::default()
         .compaction_interval_sec(0)
         .build()
         .unwrap();
     let svc3 = lol_core::make_raft_service(
         raft_app,
-        lol_core::storage::memory::Storage::new(),
+        lol_core::storage::rocksdb::Storage::open(&SOROCKDB_ROOT.join("raft_log"))?,
         uri,
         config,
     )
