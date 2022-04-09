@@ -25,6 +25,8 @@ async fn main() -> anyhow::Result<()> {
     std::fs::write(SOROCKDB_ROOT.join("dead_flag"), "")?;
 
     if !SOROCKDB_ROOT.join("init_flag").exists() {
+        eprintln!("init_flag doesn't exist. The state will be recreated.");
+
         let snapshots = SOROCKDB_ROOT.join("snapshots");
         lol_core::simple::FileRepository::create(&snapshots)?;
 
@@ -163,6 +165,7 @@ async fn main() -> anyhow::Result<()> {
 
     // On successful shutdown, the dead flag is removed.
     std::fs::remove_file(SOROCKDB_ROOT.join("dead_flag"))?;
+    eprintln!("success in shutdown.");
 
     Ok(())
 }

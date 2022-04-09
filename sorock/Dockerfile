@@ -1,4 +1,8 @@
-FROM 'rust:1.59' as env
+FROM 'rust:1.60' as env
+
+RUN apt-get update && apt-get install -y \
+	build-essential \
+	clang
 
 RUN rustup component add rustfmt
 RUN cargo install cargo-chef --locked
@@ -15,7 +19,7 @@ RUN cargo chef cook --release --recipe-path=recipe.json
 COPY . /work
 RUN cargo build --release --bin sorock
 
-FROM 'rust:1.59-slim'
+FROM 'rust:1.60-slim'
 COPY --from=build /work/target/release/sorock .
 EXPOSE 50000
 ENTRYPOINT [ "./sorock" ]

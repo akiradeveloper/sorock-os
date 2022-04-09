@@ -54,10 +54,12 @@ impl Reporter for App {
             }
         }
         let n = candidates.len();
-        let k = rand::random::<usize>() % n;
-        let suspect = candidates.swap_remove(k);
-        // dbg!(&suspect);
-        self.queue_cli.queue_suspect(suspect).await.unwrap();
+        if n > 0 {
+            let k = rand::random::<usize>() % n;
+            let suspect = candidates.swap_remove(k);
+            // dbg!(&suspect);
+            self.queue_cli.queue_suspect(suspect).await.unwrap();
+        }
     }
     async fn set_new_cluster(self, cluster: HashSet<Uri>) {
         *self.state.cluster.write().await = cluster;
