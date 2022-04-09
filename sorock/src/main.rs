@@ -5,6 +5,7 @@ use signal_hook_tokio::Signals;
 use sorock_core::*;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+mod fd_app_out;
 
 #[derive(serde::Deserialize, Debug)]
 struct Config {
