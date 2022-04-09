@@ -11,6 +11,8 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 use tonic::transport::Channel;
 
+mod fd_app_in_stub;
+
 fn available_port() -> std::io::Result<u16> {
     TcpListener::bind("localhost:0").map(|x| x.local_addr().unwrap().port())
 }
@@ -83,32 +85,6 @@ async fn start_server(port: u16) {
         .await
         .expect("failed to start a server");
 }
-
-mod fd_app_in_stub {
-    use failure_detector::app_in as M;
-    use lol_core::Uri;
-    use std::collections::HashSet;
-
-    #[derive(Clone)]
-    struct App;
-    #[norpc::async_trait]
-    impl M::AppIn for App {
-        async fn set_new_cluster(mut self, cluster: HashSet<Uri>) {}
-    }
-    pub fn spawn() -> M::ClientT {
-        use norpc::runtime::send::*;
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
-        tokio::spawn(async {
-            let svc = App {};
-            let service = M::AppInService::new(svc);
-            let server = ServerExecutor::new(rx, service);
-            server.serve().await
-        });
-        let chan = ClientService::new(tx);
-        M::AppInClient::new(chan)
-    }
-}
-
 struct Cluster {
     servers: HashMap<Uri, JoinHandle<()>>,
     leader: Option<Uri>,

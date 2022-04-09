@@ -5,7 +5,7 @@ use signal_hook_tokio::Signals;
 use sorock_core::*;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-mod fd_app_out;
+mod fd_app_out_impl;
 
 #[derive(serde::Deserialize, Debug)]
 struct Config {
@@ -79,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
 
     use failure_detector as FD;
     let peer_out_cli = FD::peer_out::spawn(FD::peer_out::State::new());
-    let app_out_cli = fd_app_out::spawn(fd_app_out::State::new(uri.clone()));
+    let app_out_cli = fd_app_out_impl::spawn(fd_app_out_impl::State::new(uri.clone()));
     let queue_cli = FD::queue::spawn(peer_out_cli.clone(), app_out_cli, FD::queue::State::new());
     let reporter_cli =
         FD::reporter::spawn(queue_cli.clone(), FD::reporter::State::new(uri.clone()));
