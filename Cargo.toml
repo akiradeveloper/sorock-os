@@ -3,5 +3,6 @@ members = [
 	"sorock",
 	"sorock-core",
 	"failure-detector",
-	"data-loss-calculator"
+	"data-loss-calculator",
+	"integration-tests"
 ]
