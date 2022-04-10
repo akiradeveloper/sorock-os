@@ -88,11 +88,21 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     }
     tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let mut cli = RaftClient::new(chan.clone());
+    let rep = cli.request_cluster_info(ClusterInfoReq {}).await?.into_inner();
+    assert_eq!(rep.membership.len(), 4);
+
     run_sanity_check().await?;
 
     // stop nd1
     run_cmd!(docker-compose stop nd1)?;
     tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let mut cli = RaftClient::new(chan.clone());
+    let rep = cli.request_cluster_info(ClusterInfoReq {}).await?.into_inner();
+    assert_eq!(rep.membership.len(), 3);
+
     run_sanity_check().await?;
 
     run_cmd!(docker-compose down -v)?;
