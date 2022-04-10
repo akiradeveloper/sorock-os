@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     let ep = Endpoint::new(node_list[0].dest.clone())?;
     let chan = ep.connect_lazy();
 
-    for i in 0..2 {
+    for i in 0..3 {
         let mut cli = RaftClient::new(chan.clone());
         let req = AddServerReq {
             id: node_list[i].id.to_string(),
@@ -55,15 +55,45 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     }
 
-    for i in 0..N {
-        let mut cli = sorock_client::SorockClient::new(chan.clone());
-        let SanityCheckRep { n_lost } = cli.sanity_check(SanityCheckReq {
-            key: format!("key-{}", i),
-        })
-        .await?.into_inner();
+    let run_sanity_check = || async {
+        for i in 0..N {
+            let mut cli = sorock_client::SorockClient::new(chan.clone());
+            let SanityCheckRep { n_lost } = cli.sanity_check(SanityCheckReq {
+                key: format!("key-{}", i),
+            })
+            .await?.into_inner();
 
-        anyhow::ensure!(n_lost == 0);
-    }
+            anyhow::ensure!(n_lost == 0);
+        }
+        Ok(())
+    };
+
+    run_sanity_check().await?;
+
+    // add nd3
+    // for i in 3..4 {
+    //     let mut cli = RaftClient::new(chan.clone());
+    //     let req = AddServerReq {
+    //         id: node_list[i].id.to_string(),
+    //     };
+    //     cli.add_server(req).await?;
+
+    //     tokio::time::sleep(Duration::from_secs(1)).await;
+
+    //     let mut cli = sorock_client::SorockClient::new(chan.clone());
+    //     cli.add_node(AddNodeReq {
+    //         uri: node_list[i].id.to_string(),
+    //         cap: 1.,
+    //     })
+    //     .await?;
+    // }
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+    // run_sanity_check().await?;
+
+    // stop nd1
+    // run_cmd!("docker-compose stop nd1")?;
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+    // run_sanity_check().await?;
 
     run_cmd!(docker-compose down -v)?;
     Ok(())
