@@ -123,6 +123,7 @@ async fn main() -> anyhow::Result<()> {
     let svc3 = lol_core::make_raft_service(
         raft_app,
         lol_core::storage::rocksdb::Storage::open(&SOROCKDB_ROOT.join("raft_log"))?,
+        // lol_core::storage::memory::Storage::new(),
         uri.clone(),
         config,
     )
