@@ -58,10 +58,12 @@ async fn main() -> anyhow::Result<()> {
     let run_sanity_check = || async {
         for i in 0..N {
             let mut cli = sorock_client::SorockClient::new(chan.clone());
-            let SanityCheckRep { n_lost } = cli.sanity_check(SanityCheckReq {
-                key: format!("key-{}", i),
-            })
-            .await?.into_inner();
+            let SanityCheckRep { n_lost } = cli
+                .sanity_check(SanityCheckReq {
+                    key: format!("key-{}", i),
+                })
+                .await?
+                .into_inner();
 
             anyhow::ensure!(n_lost == 0);
         }
@@ -71,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
     run_sanity_check().await?;
 
     // add nd3
-    for i in 3..4 {
+    for i in [3] {
         let mut cli = RaftClient::new(chan.clone());
         let req = AddServerReq {
             id: node_list[i].id.to_string(),
@@ -90,7 +92,10 @@ async fn main() -> anyhow::Result<()> {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     let mut cli = RaftClient::new(chan.clone());
-    let rep = cli.request_cluster_info(ClusterInfoReq {}).await?.into_inner();
+    let rep = cli
+        .request_cluster_info(ClusterInfoReq {})
+        .await?
+        .into_inner();
     assert_eq!(rep.membership.len(), 4);
 
     run_sanity_check().await?;
@@ -100,8 +105,40 @@ async fn main() -> anyhow::Result<()> {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     let mut cli = RaftClient::new(chan.clone());
-    let rep = cli.request_cluster_info(ClusterInfoReq {}).await?.into_inner();
+    let rep = cli
+        .request_cluster_info(ClusterInfoReq {})
+        .await?
+        .into_inner();
     assert_eq!(rep.membership.len(), 3);
+
+    run_sanity_check().await?;
+
+    // restart nd1
+    run_cmd!(docker-compose start nd1)?;
+    for i in [1] {
+        let mut cli = RaftClient::new(chan.clone());
+        let req = AddServerReq {
+            id: node_list[i].id.to_string(),
+        };
+        cli.add_server(req).await?;
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let mut cli = sorock_client::SorockClient::new(chan.clone());
+        cli.add_node(AddNodeReq {
+            uri: node_list[i].id.to_string(),
+            cap: 1.,
+        })
+        .await?;
+    }
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let mut cli = RaftClient::new(chan.clone());
+    let rep = cli
+        .request_cluster_info(ClusterInfoReq {})
+        .await?
+        .into_inner();
+    assert_eq!(rep.membership.len(), 4);
 
     run_sanity_check().await?;
 
