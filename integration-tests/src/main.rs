@@ -22,50 +22,6 @@ async fn main() -> anyhow::Result<()> {
         node_list.push(node);
     }
 
-    let add_server = |chan: Channel, node: Node| async move {
-        let mut cli = RaftClient::new(chan.clone());
-        let req = AddServerReq {
-            id: node.id.to_string(),
-        };
-        cli.add_server(req).await?;
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        let mut cli = sorock_client::SorockClient::new(chan.clone());
-        cli.add_node(AddNodeReq {
-            uri: node.id.to_string(),
-            cap: 1.,
-        })
-        .await?;
-
-        Ok::<(), anyhow::Error>(())
-    };
-
-    let run_sanity_check = |chan: Channel| async move {
-        for i in 0..N {
-            let mut cli = sorock_client::SorockClient::new(chan.clone());
-            let SanityCheckRep { n_lost } = cli
-                .sanity_check(SanityCheckReq {
-                    key: format!("key-{}", i),
-                })
-                .await?
-                .into_inner();
-
-            anyhow::ensure!(n_lost == 0);
-        }
-        Ok(())
-    };
-
-    let assert_node_size = |chan: Channel, should_be: usize| async move {
-        let mut cli = RaftClient::new(chan.clone());
-        let rep = cli
-            .request_cluster_info(ClusterInfoReq {})
-            .await?
-            .into_inner();
-        assert_eq!(rep.membership.len(), should_be);
-        Ok::<(), anyhow::Error>(())
-    };
-
     run_cmd!(docker-compose down -v)?;
     run_cmd!(docker-compose up -d)?;
 
@@ -92,22 +48,66 @@ async fn main() -> anyhow::Result<()> {
     // add nd3
     add_server(chan.clone(), node_list[3].clone()).await?;
     tokio::time::sleep(Duration::from_secs(5)).await;
-    assert_node_size(chan.clone(), 4).await?;
+    assert_cluster_size(chan.clone(), 4).await?;
     run_sanity_check(chan.clone()).await?;
 
     // stop nd1
     run_cmd!(docker-compose stop nd1)?;
     tokio::time::sleep(Duration::from_secs(5)).await;
-    assert_node_size(chan.clone(), 3).await?;
+    assert_cluster_size(chan.clone(), 3).await?;
     run_sanity_check(chan.clone()).await?;
 
     // restart nd1
     run_cmd!(docker-compose start nd1)?;
     add_server(chan.clone(), node_list[1].clone()).await?;
     tokio::time::sleep(Duration::from_secs(5)).await;
-    assert_node_size(chan.clone(), 4).await?;
+    assert_cluster_size(chan.clone(), 4).await?;
     run_sanity_check(chan.clone()).await?;
 
     run_cmd!(docker-compose down -v)?;
+    Ok(())
+}
+
+async fn add_server(chan: Channel, node: Node) -> anyhow::Result<()> {
+    let mut cli = RaftClient::new(chan.clone());
+    let req = AddServerReq {
+        id: node.id.to_string(),
+    };
+    cli.add_server(req).await?;
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let mut cli = sorock_client::SorockClient::new(chan.clone());
+    cli.add_node(AddNodeReq {
+        uri: node.id.to_string(),
+        cap: 1.,
+    })
+    .await?;
+
+    Ok(())
+}
+
+async fn run_sanity_check(chan: Channel) -> anyhow::Result<()> {
+    for i in 0..N {
+        let mut cli = sorock_client::SorockClient::new(chan.clone());
+        let SanityCheckRep { n_lost } = cli
+            .sanity_check(SanityCheckReq {
+                key: format!("key-{}", i),
+            })
+            .await?
+            .into_inner();
+
+        anyhow::ensure!(n_lost == 0);
+    }
+    Ok(())
+}
+
+async fn assert_cluster_size(chan: Channel, should_be: usize) -> anyhow::Result<()> {
+    let mut cli = RaftClient::new(chan.clone());
+    let rep = cli
+        .request_cluster_info(ClusterInfoReq {})
+        .await?
+        .into_inner();
+    assert_eq!(rep.membership.len(), should_be);
     Ok(())
 }
