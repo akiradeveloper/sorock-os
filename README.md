@@ -15,7 +15,7 @@ The name comes from [Soroku Ebara](https://en.wikipedia.org/wiki/Ebara_Soroku), 
 - Erasure Coding is used for data resiliency.
 - Cluster configuration is replicated by [Raft](https://github.akiradeveloper/lol) for faster propagation than Gossip.
 - Automatic stabilization on cluster change.
-- Automatic failure detection based on "On Scalable and Efficient Distributed Failure Detectors (2001)".
+- Automatic failure detection based on [On Scalable and Efficient Distributed Failure Detectors (2001)](https://dl.acm.org/doi/10.1145/383962.384010).
 - Automatic data rebuild on node failure.
 
 ## Author
