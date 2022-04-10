@@ -1,6 +1,7 @@
 version: '3'
 volumes:
   vol0:
+  vol1:
 services:
   nd0:
     image: sorock:dev
@@ -10,3 +11,12 @@ services:
       - 50000:50000
     volumes:
       - vol0:/var/lib/sorock/data
+
+  nd1:
+    image: sorock:dev
+    environment:
+      URI: http://nd1:50000
+    ports:
+      - 50001:50000
+    volumes:
+      - vol1:/var/lib/sorock/data
