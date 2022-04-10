@@ -55,6 +55,16 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     }
 
+    for i in 0..N {
+        let mut cli = sorock_client::SorockClient::new(chan.clone());
+        let SanityCheckRep { n_lost } = cli.sanity_check(SanityCheckReq {
+            key: format!("key-{}", i),
+        })
+        .await?.into_inner();
+
+        anyhow::ensure!(n_lost == 0);
+    }
+
     run_cmd!(docker-compose down -v)?;
     Ok(())
 }
