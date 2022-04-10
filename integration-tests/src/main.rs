@@ -71,29 +71,29 @@ async fn main() -> anyhow::Result<()> {
     run_sanity_check().await?;
 
     // add nd3
-    // for i in 3..4 {
-    //     let mut cli = RaftClient::new(chan.clone());
-    //     let req = AddServerReq {
-    //         id: node_list[i].id.to_string(),
-    //     };
-    //     cli.add_server(req).await?;
+    for i in 3..4 {
+        let mut cli = RaftClient::new(chan.clone());
+        let req = AddServerReq {
+            id: node_list[i].id.to_string(),
+        };
+        cli.add_server(req).await?;
 
-    //     tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
-    //     let mut cli = sorock_client::SorockClient::new(chan.clone());
-    //     cli.add_node(AddNodeReq {
-    //         uri: node_list[i].id.to_string(),
-    //         cap: 1.,
-    //     })
-    //     .await?;
-    // }
-    // tokio::time::sleep(Duration::from_secs(5)).await;
-    // run_sanity_check().await?;
+        let mut cli = sorock_client::SorockClient::new(chan.clone());
+        cli.add_node(AddNodeReq {
+            uri: node_list[i].id.to_string(),
+            cap: 1.,
+        })
+        .await?;
+    }
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    run_sanity_check().await?;
 
     // stop nd1
-    // run_cmd!("docker-compose stop nd1")?;
-    // tokio::time::sleep(Duration::from_secs(5)).await;
-    // run_sanity_check().await?;
+    run_cmd!(docker-compose stop nd1)?;
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    run_sanity_check().await?;
 
     run_cmd!(docker-compose down -v)?;
     Ok(())

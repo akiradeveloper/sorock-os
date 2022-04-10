@@ -37,6 +37,7 @@ struct App {
 #[norpc::async_trait]
 impl M::AppOut for App {
     async fn notify_failure(mut self, culprit: Uri) {
+        eprintln!("{} is failed.", culprit);
         let mut cli1 =
             sorock_core::proto_compiled::sorock_client::SorockClient::new(self.state.chan.clone());
         cli1.remove_node(sorock_core::proto_compiled::RemoveNodeReq {
