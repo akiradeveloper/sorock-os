@@ -6,5 +6,7 @@ services:
     image: sorock:dev
     environment:
       URI: https://nd0:50000
+    ports:
+      - 50000:50000
     volumes:
       - vol0:/var/lib/sorock/data
