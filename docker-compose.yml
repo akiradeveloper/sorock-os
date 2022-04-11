@@ -9,6 +9,7 @@ services:
     image: sorock:dev
     environment:
       URI: http://nd0:50000
+      CAP: 1TiB
     ports:
       - 50000:50000
     volumes:
@@ -18,6 +19,7 @@ services:
     image: sorock:dev
     environment:
       URI: http://nd1:50000
+      CAP: 2.5TiB
     ports:
       - 50001:50000
     volumes:
@@ -27,6 +29,7 @@ services:
     image: sorock:dev
     environment:
       URI: http://nd2:50000
+      CAP: 10TiB
     ports:
       - 50002:50000
     volumes:
@@ -36,6 +39,7 @@ services:
     image: sorock:dev
     environment:
       URI: http://nd3:50000
+      CAP: 300GiB
     ports:
       - 50003:50000
     volumes:

@@ -4,24 +4,33 @@ mod proto_compiled {
     tonic::include_proto!("sorock");
 }
 use proto_compiled::{
-    sorock_server::Sorock, AddNodeReq, CreateReq, DeleteReq, IndexedPiece, PieceExistsRep,
-    PieceExistsReq, ReadRep, ReadReq, RemoveNodeReq, RequestAnyPiecesRep, RequestAnyPiecesReq,
-    RequestPieceRep, RequestPieceReq, SanityCheckRep, SanityCheckReq, SendPieceRep, SendPieceReq,
+    sorock_server::Sorock, AddNodeReq, ConfigRep, ConfigReq, CreateReq, DeleteReq, IndexedPiece,
+    PieceExistsRep, PieceExistsReq, ReadRep, ReadReq, RemoveNodeReq, RequestAnyPiecesRep,
+    RequestAnyPiecesReq, RequestPieceRep, RequestPieceReq, SanityCheckRep, SanityCheckReq,
+    SendPieceRep, SendPieceReq,
 };
+use tonic::transport::{Channel, Endpoint};
 
 pub struct Server {
     io_front_cli: io_front::ClientT,
     peer_in_cli: peer_in::ClientT,
-    self_chan: tonic::transport::Channel,
+    self_chan: Channel,
+    cap_tib: f64,
 }
 impl Server {
-    pub fn new(io_front_cli: io_front::ClientT, peer_in_cli: peer_in::ClientT, uri: Uri) -> Self {
-        let e = tonic::transport::Endpoint::new(uri).unwrap();
+    pub fn new(
+        io_front_cli: io_front::ClientT,
+        peer_in_cli: peer_in::ClientT,
+        uri: Uri,
+        cap_tib: f64,
+    ) -> Self {
+        let e = Endpoint::new(uri).unwrap();
         let self_chan = e.connect_lazy();
         Self {
             io_front_cli,
             peer_in_cli,
             self_chan,
+            cap_tib,
         }
     }
 }
@@ -79,18 +88,25 @@ impl Sorock for Server {
         request: tonic::Request<AddNodeReq>,
     ) -> Result<tonic::Response<()>, tonic::Status> {
         let req = request.into_inner();
+
+        // Get cap from the tgt.
+        let tgt_uri: Uri = req.uri.parse().unwrap();
+        let chan_tgt = Endpoint::new(tgt_uri.clone()).unwrap().connect_lazy();
+        let mut cli = proto_compiled::sorock_client::SorockClient::new(chan_tgt);
+        let config = cli.request_config(ConfigReq {}).await?.into_inner();
+
+        // Commit a AddNode command.
         let chan = self.self_chan.clone();
         let mut cli = lol_core::RaftClient::new(chan);
-        let tgt_uri: Uri = req.uri.parse().unwrap();
         let msg = Command::AddNode {
             uri: URI(tgt_uri),
-            cap: req.cap,
+            cap: config.cap,
         };
         cli.request_commit(lol_core::api::CommitReq {
             message: Command::encode(&msg),
         })
-        .await
-        .unwrap();
+        .await?;
+
         Ok(tonic::Response::new(()))
     }
     async fn remove_node(
@@ -175,6 +191,13 @@ impl Sorock for Server {
         }
         let out = RequestAnyPiecesRep { pieces };
         Ok(tonic::Response::new(out))
+    }
+    async fn request_config(
+        &self,
+        req: tonic::Request<ConfigReq>,
+    ) -> Result<tonic::Response<ConfigRep>, tonic::Status> {
+        let rep = ConfigRep { cap: self.cap_tib };
+        Ok(tonic::Response::new(rep))
     }
 }
 

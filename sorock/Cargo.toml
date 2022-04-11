@@ -19,3 +19,4 @@ envy = "0.4"
 serde = { version = "1", features = ["derive"] }
 http-serde = "1"
 norpc = "0.7"
+byte-unit = { version = "4", features = ["serde"] }

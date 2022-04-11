@@ -51,7 +51,7 @@ async fn start_server(port: u16) {
         peer_in::State::new(),
     );
     let server =
-        storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone());
+        storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone(), 1.);
     let svc1 = storage_service::make_service(server).await;
 
     let app_in_cli = fd_app_in_stub::spawn();
@@ -170,12 +170,11 @@ impl Cluster {
         let hdl = self.servers.remove(&uri).unwrap();
         hdl.abort();
     }
-    async fn add_node(&self, uri: Uri, cap: f64) {
+    async fn add_node(&self, uri: Uri) {
         let chan = self.connect().await;
         let mut cli = proto_compiled::sorock_client::SorockClient::new(chan);
         let req = proto_compiled::AddNodeReq {
             uri: uri.to_string(),
-            cap,
         };
         cli.add_node(req).await.unwrap();
     }
@@ -227,7 +226,7 @@ impl Cluster {
 async fn test_add_1_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     let uri = cluster.up_node().await;
-    cluster.add_node(uri.clone(), 1.0).await;
+    cluster.add_node(uri.clone()).await;
     Ok(())
 }
 
@@ -236,7 +235,7 @@ async fn test_add_1_node() -> anyhow::Result<()> {
 async fn test_ping() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     let uri = cluster.up_node().await;
-    cluster.add_node(uri.clone(), 1.0).await;
+    cluster.add_node(uri.clone()).await;
 
     let chan = cluster.connect().await;
     let mut cli = proto_compiled::sorock_client::SorockClient::new(chan);
@@ -273,7 +272,7 @@ fn prepare_dataset(n: usize) -> Vec<(String, Vec<u8>)> {
 async fn test_io_1_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     let uri = cluster.up_node().await;
-    cluster.add_node(uri, 1.0).await;
+    cluster.add_node(uri).await;
 
     let dataset = prepare_dataset(100);
     for (k, v) in &dataset {
@@ -294,7 +293,7 @@ async fn test_add_3_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..3 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     Ok(())
 }
@@ -305,7 +304,7 @@ async fn test_add_10_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     Ok(())
 }
@@ -316,7 +315,7 @@ async fn test_add_remove_10_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     for _ in 0..20 {
         let remove_uri = cluster.choose_one();
@@ -324,7 +323,7 @@ async fn test_add_remove_10_node() -> anyhow::Result<()> {
         cluster.down_node(remove_uri).await;
 
         let add_uri = cluster.up_node().await;
-        cluster.add_node(add_uri, 1.0).await;
+        cluster.add_node(add_uri).await;
     }
     Ok(())
 }
@@ -335,7 +334,7 @@ async fn test_io_10_node() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -361,7 +360,7 @@ async fn test_io_10_node() -> anyhow::Result<()> {
 async fn text_expand_once() {
     let mut cluster = Cluster::new();
     let uri = cluster.up_node().await;
-    cluster.add_node(uri, 1.0).await;
+    cluster.add_node(uri).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let dataset = prepare_dataset(100);
@@ -370,7 +369,7 @@ async fn text_expand_once() {
     }
 
     let uri = cluster.up_node().await;
-    cluster.add_node(uri, 1.0).await;
+    cluster.add_node(uri).await;
     tokio::time::sleep(Duration::from_secs(10)).await;
     eprintln!("stabilized.");
 
@@ -390,7 +389,7 @@ async fn text_expand_once_10_node() {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -400,7 +399,7 @@ async fn text_expand_once_10_node() {
     }
 
     let uri = cluster.up_node().await;
-    cluster.add_node(uri, 1.0).await;
+    cluster.add_node(uri).await;
     tokio::time::sleep(Duration::from_secs(10)).await;
     eprintln!("stabilized.");
 
@@ -420,7 +419,7 @@ async fn test_shrink_once() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -453,7 +452,7 @@ async fn test_expanding_cluster() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..1 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -468,7 +467,7 @@ async fn test_expanding_cluster() -> anyhow::Result<()> {
             assert_eq!(&read, v);
         }
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
 
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
@@ -482,7 +481,7 @@ async fn test_shrinking_cluster() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -513,7 +512,7 @@ async fn test_changing_cluster() -> anyhow::Result<()> {
     let mut cluster = Cluster::new();
     for _ in 0..10 {
         let uri = cluster.up_node().await;
-        cluster.add_node(uri, 1.0).await;
+        cluster.add_node(uri).await;
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -538,7 +537,7 @@ async fn test_changing_cluster() -> anyhow::Result<()> {
 
         // add a new node.
         let add_uri = cluster.up_node().await;
-        cluster.add_node(add_uri, 1.0).await;
+        cluster.add_node(add_uri).await;
 
         // FIXME should strictly wait for stabilization.
         tokio::time::sleep(Duration::from_secs(1)).await;

@@ -80,7 +80,6 @@ async fn add_server(chan: Channel, node: Node) -> anyhow::Result<()> {
     let mut cli = sorock_client::SorockClient::new(chan.clone());
     cli.add_node(AddNodeReq {
         uri: node.id.to_string(),
-        cap: 1.,
     })
     .await?;
 
