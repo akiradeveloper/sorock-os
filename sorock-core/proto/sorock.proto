@@ -25,7 +25,6 @@ message DeleteReq {
 }
 message AddNodeReq {
 	string uri = 1;
-	double cap = 2;
 }
 message RemoveNodeReq {
 	string uri = 1;
@@ -63,6 +62,11 @@ message IndexedPiece {
 message RequestAnyPiecesRep {
 	repeated IndexedPiece pieces = 1;
 }
+message ConfigReq {
+}
+message ConfigRep {
+	double cap = 1;
+}
 
 service Sorock {
 	rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
@@ -76,4 +80,5 @@ service Sorock {
 	rpc RequestPiece (RequestPieceReq) returns (RequestPieceRep);
 	rpc RequestAnyPieces (RequestAnyPiecesReq) returns (RequestAnyPiecesRep);
 	rpc SanityCheck (SanityCheckReq) returns (SanityCheckRep);
+	rpc request_config (ConfigReq) returns (ConfigRep);
 }

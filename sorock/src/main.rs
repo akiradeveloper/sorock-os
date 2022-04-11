@@ -11,12 +11,14 @@ mod fd_app_out_impl;
 struct Config {
     #[serde(with = "http_serde::uri")]
     uri: tonic::transport::Uri,
+    cap: byte_unit::Byte,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = envy::from_env::<Config>()?;
     let uri = config.uri;
+    let cap = config.cap;
 
     let SOROCKDB_ROOT = Path::new("/var/lib/sorock/data");
     if SOROCKDB_ROOT.join("dead_flag").exists() {
@@ -73,8 +75,13 @@ async fn main() -> anyhow::Result<()> {
         rebuild_queue_cli.clone(),
         peer_in::State::new(),
     );
-    let server =
-        storage_service::Server::new(io_front_cli.clone(), peer_in_cli.clone(), uri.clone());
+    let cap = cap.get_adjusted_unit(byte_unit::ByteUnit::TiB);
+    let server = storage_service::Server::new(
+        io_front_cli.clone(),
+        peer_in_cli.clone(),
+        uri.clone(),
+        cap.get_value(),
+    );
     let svc1 = storage_service::make_service(server).await;
 
     // Failure Detector Service
