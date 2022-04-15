@@ -48,21 +48,17 @@ impl ClusterIn for App {
             .await?;
         self.io_front_cli
             .set_new_cluster(cluster.clone())
-            .await
-            .unwrap();
+            .await?;
         self.peer_in_cli
             .set_new_cluster(cluster.clone())
-            .await
-            .unwrap();
+            .await?;
         self.rebuild_queue_cli
             .set_new_cluster(cluster.clone())
-            .await
-            .unwrap();
+            .await?;
         self.stabilizer_cli
             .set_new_cluster(cluster)
-            .await
-            .unwrap()?;
-        self.stabilizer_cli.flush_queue().await.unwrap();
+            .await??;
+        self.stabilizer_cli.flush_queue().await?;
 
         Ok(())
     }
