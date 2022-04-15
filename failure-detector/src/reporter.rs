@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 #[norpc::service]
 trait Reporter {
-    fn run_once();
+    fn run_once() -> anyhow::Result<()>;
     fn set_new_cluster(cluster: HashSet<Uri>);
 }
 define_client!(Reporter);
@@ -44,7 +44,7 @@ struct App {
 }
 #[norpc::async_trait]
 impl Reporter for App {
-    async fn run_once(mut self) {
+    async fn run_once(mut self) -> anyhow::Result<()> {
         let mut candidates = vec![];
         let all = self.state.cluster.read().await.clone();
         for x in all {
@@ -60,6 +60,8 @@ impl Reporter for App {
             // dbg!(&suspect);
             self.queue_cli.queue_suspect(suspect).await.unwrap();
         }
+
+        Ok(())
     }
     async fn set_new_cluster(self, cluster: HashSet<Uri>) {
         *self.state.cluster.write().await = cluster;

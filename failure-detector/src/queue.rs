@@ -6,7 +6,7 @@ use std::collections::HashSet;
 trait Queue {
     fn queue_suspect(suspect: Uri);
     fn set_new_cluster(cluster: HashSet<Uri>);
-    fn run_once();
+    fn run_once() -> anyhow::Result<()>;
 }
 define_client!(Queue);
 
@@ -60,7 +60,7 @@ impl Queue for App {
     async fn set_new_cluster(self, cluster: HashSet<Uri>) {
         *self.state.cluster.write().await = cluster;
     }
-    async fn run_once(self) {
+    async fn run_once(self) -> anyhow::Result<()> {
         let mut writer = self.state.queue.write().await;
         let cur_list = writer.clone();
         *writer = HashSet::new();
@@ -102,11 +102,12 @@ impl Queue for App {
                     }
                     if !ok2 {
                         let culprit = suspect;
-                        app_out_cli.notify_failure(culprit).await.unwrap();
+                        app_out_cli.notify_failure(culprit).await.unwrap().unwrap();
                     }
                 }
             });
         }
+        Ok(())
     }
 }
 fn choose_unique_k<T: Eq + std::hash::Hash + Clone>(set: &HashSet<T>, k: usize) -> HashSet<T> {

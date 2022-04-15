@@ -121,7 +121,8 @@ impl App {
 }
 #[norpc::async_trait]
 impl app_out::AppOut for App {
-    async fn notify_failure(self, calprit: Uri) {
+    async fn notify_failure(self, calprit: Uri) -> anyhow::Result<()> {
         self.q.write().unwrap().insert(calprit);
+        Ok(())
     }
 }

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 #[norpc::service]
 trait AppIn {
     // fn report_suspect();
-    fn set_new_cluster(cluster: HashSet<Uri>);
+    fn set_new_cluster(cluster: HashSet<Uri>) -> anyhow::Result<()>;
 }
 define_client!(AppIn);
 
@@ -31,14 +31,9 @@ struct App {
 }
 #[norpc::async_trait]
 impl AppIn for App {
-    async fn set_new_cluster(mut self, cluster: HashSet<Uri>) {
-        self.queue_cli
-            .set_new_cluster(cluster.clone())
-            .await
-            .unwrap();
-        self.reporter_cli
-            .set_new_cluster(cluster.clone())
-            .await
-            .unwrap();
+    async fn set_new_cluster(mut self, cluster: HashSet<Uri>) -> anyhow::Result<()> {
+        self.queue_cli.set_new_cluster(cluster.clone()).await?;
+        self.reporter_cli.set_new_cluster(cluster.clone()).await?;
+        Ok(())
     }
 }

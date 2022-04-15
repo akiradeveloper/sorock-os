@@ -36,20 +36,22 @@ struct App {
 
 #[norpc::async_trait]
 impl M::AppOut for App {
-    async fn notify_failure(mut self, culprit: Uri) {
+    async fn notify_failure(mut self, culprit: Uri) -> anyhow::Result<()> {
         eprintln!("{} is failed.", culprit);
+
         let mut cli1 =
             sorock_core::proto_compiled::sorock_client::SorockClient::new(self.state.chan.clone());
         cli1.remove_node(sorock_core::proto_compiled::RemoveNodeReq {
             uri: culprit.to_string(),
         })
-        .await
-        .unwrap();
+        .await?;
+
         let mut cli2 = lol_core::RaftClient::new(self.state.chan.clone());
         cli2.remove_server(lol_core::api::RemoveServerReq {
             id: culprit.to_string(),
         })
-        .await
-        .unwrap();
+        .await?;
+
+        Ok(())
     }
 }

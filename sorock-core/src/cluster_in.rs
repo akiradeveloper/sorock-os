@@ -45,19 +45,13 @@ impl ClusterIn for App {
     async fn set_new_cluster(mut self, cluster: ClusterMap) -> anyhow::Result<()> {
         self.fd_app_in_cli
             .set_new_cluster(cluster.members())
-            .await?;
-        self.io_front_cli
-            .set_new_cluster(cluster.clone())
-            .await?;
-        self.peer_in_cli
-            .set_new_cluster(cluster.clone())
-            .await?;
+            .await??;
+        self.io_front_cli.set_new_cluster(cluster.clone()).await?;
+        self.peer_in_cli.set_new_cluster(cluster.clone()).await?;
         self.rebuild_queue_cli
             .set_new_cluster(cluster.clone())
             .await?;
-        self.stabilizer_cli
-            .set_new_cluster(cluster)
-            .await??;
+        self.stabilizer_cli.set_new_cluster(cluster).await??;
         self.stabilizer_cli.flush_queue().await?;
 
         Ok(())

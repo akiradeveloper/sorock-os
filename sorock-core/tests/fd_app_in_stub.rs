@@ -6,7 +6,9 @@ use std::collections::HashSet;
 struct App;
 #[norpc::async_trait]
 impl M::AppIn for App {
-    async fn set_new_cluster(mut self, cluster: HashSet<Uri>) {}
+    async fn set_new_cluster(mut self, cluster: HashSet<Uri>) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 pub fn spawn() -> M::ClientT {
     use norpc::runtime::send::*;
