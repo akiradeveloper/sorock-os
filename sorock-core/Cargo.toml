@@ -10,11 +10,11 @@ lol-core = { git = "https://github.com/akiradeveloper/lol" , features = ["simple
 reed-solomon-erasure = { version = "4.0", features = [ "simd-accel" ] }
 bytes = { version = "1", features = ["serde"] }
 tokio = { version = "1.10", features = ["full"] }
-tonic = "0.6"
+tonic = "0.7"
 http-serde = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
-prost = "0.9"
+prost = "0.10"
 futures = "0.3"
 anyhow = "1"
 norpc = { version = "0.7", features = ["runtime"] }
@@ -26,8 +26,8 @@ sqlx = { version = "0.5.11", features = ["sqlite", "runtime-tokio-rustls"] }
 failure-detector = { path = "../failure-detector" }
 
 [build-dependencies]
-tonic-build = "0.6"
-prost-build = "0.9"
+tonic-build = "0.7"
+prost-build = "0.10"
 
 [dev-dependencies]
 serial_test = "*"

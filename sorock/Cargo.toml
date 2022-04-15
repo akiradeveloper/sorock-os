@@ -10,7 +10,7 @@ lol-core = { git = "https://github.com/akiradeveloper/lol", features = ["simple"
 sorock-core = { path = "../sorock-core" }
 failure-detector = { path = "../failure-detector" }
 tokio = { version = "1.10", features = ["full"] }
-tonic = "0.6"
+tonic = "0.7"
 signal-hook = "0.3"
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 anyhow = "1"

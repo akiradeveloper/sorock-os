@@ -1,9 +1,10 @@
+#![deny(unused_must_use)]
+
 use futures::stream::StreamExt;
-use lol_core::Uri;
 use signal_hook::consts::signal::*;
 use signal_hook_tokio::Signals;
 use sorock_core::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 mod fd_app_out_impl;
 
@@ -104,8 +105,12 @@ async fn main() -> anyhow::Result<()> {
         let mut queue_cli = queue_cli.clone();
         loop {
             interval.tick().await;
-            reporter_cli.run_once().await.unwrap();
-            queue_cli.run_once().await.unwrap();
+            if reporter_cli.run_once().await.unwrap().is_err() {
+                continue;
+            }
+            if queue_cli.run_once().await.unwrap().is_err() {
+                continue;
+            }
         }
     });
 

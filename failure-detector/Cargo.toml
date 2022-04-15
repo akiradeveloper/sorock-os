@@ -9,15 +9,15 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] }
 norpc = { version = "0.7", features = ["runtime"] }
 paste = "1"
-tonic = "0.6"
-prost = "0.9"
+tonic = "0.7"
+prost = "0.10"
 rand = "0.8"
 futures = "0.3"
 anyhow = "1"
 
 [build-dependencies]
-tonic-build = "0.6"
-prost-build = "0.9"
+tonic-build = "0.7"
+prost-build = "0.10"
 
 [dev-dependencies]
 serial_test = "*"
