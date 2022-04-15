@@ -485,7 +485,7 @@ async fn test_shrinking_cluster() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(100);
+    let dataset = prepare_dataset(20);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
@@ -516,7 +516,7 @@ async fn test_changing_cluster() -> anyhow::Result<()> {
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let dataset = prepare_dataset(100);
+    let dataset = prepare_dataset(20);
     for (k, v) in &dataset {
         cluster.create(k, v).await;
     }
