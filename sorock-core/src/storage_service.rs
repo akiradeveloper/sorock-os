@@ -43,7 +43,7 @@ impl Sorock for Server {
         let req = req.into_inner();
         let mut cli = self.io_front_cli.clone();
         let key = req.key;
-        let res = cli.read(key).await.unwrap().unwrap();
+        let res = cli.read(key).await.unwrap();
         let rep = ReadRep { data: res };
         Ok(tonic::Response::new(rep))
     }
@@ -54,7 +54,7 @@ impl Sorock for Server {
         let req = req.into_inner();
         let mut cli = self.io_front_cli.clone();
         let key = req.key;
-        let n_lost = cli.sanity_check(key).await.unwrap().unwrap();
+        let n_lost = cli.sanity_check(key).await.unwrap();
         let rep = SanityCheckRep {
             n_lost: n_lost as u32,
         };
@@ -68,7 +68,7 @@ impl Sorock for Server {
         let mut cli = self.io_front_cli.clone();
         let key = req.key;
         let data = req.data;
-        cli.create(key, data).await.unwrap().unwrap();
+        cli.create(key, data).await.unwrap();
         Ok(tonic::Response::new(()))
     }
     async fn delete(
@@ -135,7 +135,7 @@ impl Sorock for Server {
             index: req.index as u8,
         };
         let mut cli = self.peer_in_cli.clone();
-        let rep = cli.piece_exists(loc).await.unwrap().unwrap();
+        let rep = cli.piece_exists(loc).await.unwrap();
         Ok(tonic::Response::new(PieceExistsRep { exists: rep }))
     }
     async fn send_piece(
@@ -152,7 +152,7 @@ impl Sorock for Server {
             },
             data: req.data,
         };
-        let rep = cli.save_piece(send_piece).await.unwrap();
+        let rep = cli.save_piece(send_piece).await;
         let error_code = match rep {
             Ok(()) => 0,
             Err(SendPieceError::Rejected) => -1,
@@ -170,7 +170,7 @@ impl Sorock for Server {
             key: req.key,
             index: req.index as u8,
         };
-        let res = cli.find_piece(loc).await.unwrap().unwrap();
+        let res = cli.find_piece(loc).await.unwrap();
         let rep = RequestPieceRep { data: res };
         Ok(tonic::Response::new(rep))
     }
@@ -181,7 +181,7 @@ impl Sorock for Server {
         let mut cli = self.peer_in_cli.clone();
         let req = req.into_inner();
         let key = req.key;
-        let rep = cli.find_any_pieces(key).await.unwrap().unwrap();
+        let rep = cli.find_any_pieces(key).await.unwrap();
         let mut pieces = vec![];
         for (i, data) in rep {
             pieces.push(IndexedPiece {

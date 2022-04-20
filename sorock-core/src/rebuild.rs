@@ -17,10 +17,7 @@ impl Rebuild {
             let uri = holders[i as usize].clone();
             let fut = async move {
                 match uri {
-                    Some(uri) => {
-                        let rep = peer_out_cli.request_any_pieces(uri, key).await?;
-                        rep
-                    }
+                    Some(uri) => peer_out_cli.request_any_pieces(uri, key).await,
                     None => {
                         anyhow::bail!("failed to compute the holder node key={}", &key);
                     }
@@ -79,10 +76,7 @@ impl Rebuild {
         for uri in members {
             let mut peer_out_cli = self.peer_out_cli.clone();
             let key = key.clone();
-            let fut = async move {
-                let pieces = peer_out_cli.request_any_pieces(uri, key).await?;
-                pieces
-            };
+            let fut = async move { peer_out_cli.request_any_pieces(uri, key).await };
             let fut = tokio::time::timeout(Duration::from_secs(5), fut);
             futs.push(fut);
         }

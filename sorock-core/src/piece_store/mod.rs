@@ -16,14 +16,14 @@ define_client!(PieceStore);
 
 #[cfg(test)]
 async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
-    assert_eq!(cli.keys().await??.len(), 0);
-    assert_eq!(cli.get_pieces("a".to_string(), 8).await??, vec![]);
+    assert_eq!(cli.keys().await?.len(), 0);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await?, vec![]);
     assert_eq!(
         cli.piece_exists(PieceLocator {
             key: "a".to_string(),
             index: 1
         })
-        .await??,
+        .await?,
         false
     );
 
@@ -35,15 +35,15 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
         },
         vec![0, 0, 0, 0].into(),
     )
-    .await??;
-    assert_eq!(cli.keys().await??.len(), 1);
-    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 1);
+    .await?;
+    assert_eq!(cli.keys().await?.len(), 1);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await?.len(), 1);
     assert_eq!(
         cli.piece_exists(PieceLocator {
             key: "a".to_string(),
             index: 1
         })
-        .await??,
+        .await?,
         true
     );
     assert_eq!(
@@ -51,7 +51,7 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
             key: "a".to_string(),
             index: 0
         })
-        .await??,
+        .await?,
         false
     );
 
@@ -63,15 +63,15 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
         },
         vec![0, 0, 0, 0].into(),
     )
-    .await??;
-    assert_eq!(cli.keys().await??.len(), 1);
-    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 2);
+    .await?;
+    assert_eq!(cli.keys().await?.len(), 1);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await?.len(), 2);
     assert_eq!(
         cli.piece_exists(PieceLocator {
             key: "a".to_string(),
             index: 2
         })
-        .await??,
+        .await?,
         true
     );
 
@@ -83,14 +83,14 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
         },
         vec![0, 0, 0, 0].into(),
     )
-    .await??;
-    assert_eq!(cli.keys().await??.len(), 2);
+    .await?;
+    assert_eq!(cli.keys().await?.len(), 2);
     assert_eq!(
         cli.piece_exists(PieceLocator {
             key: "a".to_string(),
             index: 3
         })
-        .await??,
+        .await?,
         false
     );
 
@@ -99,18 +99,18 @@ async fn test_piece_store(mut cli: piece_store::ClientT) -> anyhow::Result<()> {
         key: "a".to_string(),
         index: 1,
     })
-    .await??;
-    assert_eq!(cli.keys().await??.len(), 2);
-    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 1);
+    .await?;
+    assert_eq!(cli.keys().await?.len(), 2);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await?.len(), 1);
 
     // delete (a,2)
     cli.delete_piece(PieceLocator {
         key: "a".to_string(),
         index: 2,
     })
-    .await??;
-    assert_eq!(cli.keys().await??.len(), 1);
-    assert_eq!(cli.get_pieces("a".to_string(), 8).await??.len(), 0);
+    .await?;
+    assert_eq!(cli.keys().await?.len(), 1);
+    assert_eq!(cli.get_pieces("a".to_string(), 8).await?.len(), 0);
 
     Ok(())
 }

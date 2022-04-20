@@ -105,10 +105,10 @@ async fn main() -> anyhow::Result<()> {
         let mut queue_cli = queue_cli.clone();
         loop {
             interval.tick().await;
-            if reporter_cli.run_once().await.unwrap().is_err() {
+            if reporter_cli.run_once().await.is_err() {
                 continue;
             }
-            if queue_cli.run_once().await.unwrap().is_err() {
+            if queue_cli.run_once().await.is_err() {
                 continue;
             }
         }

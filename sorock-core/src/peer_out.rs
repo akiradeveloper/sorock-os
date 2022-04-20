@@ -20,17 +20,11 @@ trait PeerOut {
 define_client!(PeerOut);
 
 pub fn spawn(state: State) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            state: Arc::new(state),
-        };
-        let service = PeerOutService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App { state };
+    let svc = PeerOutService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     PeerOutClient::new(chan)
 }
 
@@ -56,15 +50,14 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 struct App {
-    state: Arc<State>,
+    state: State,
 }
 
 #[norpc::async_trait]
 impl PeerOut for App {
     async fn send_piece(
-        self,
+        &self,
         to: Uri,
         piece: SendPiece,
     ) -> std::result::Result<(), SendPieceError> {
@@ -87,7 +80,7 @@ impl PeerOut for App {
             _ => unreachable!(),
         }
     }
-    async fn piece_exists(self, to: Uri, loc: PieceLocator) -> anyhow::Result<bool> {
+    async fn piece_exists(&self, to: Uri, loc: PieceLocator) -> anyhow::Result<bool> {
         let chan = self.state.connect(to).await;
         let mut cli = SorockClient::new(chan);
         let rep = cli
@@ -99,7 +92,7 @@ impl PeerOut for App {
         let rep = rep.into_inner();
         Ok(rep.exists)
     }
-    async fn request_piece(self, to: Uri, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
+    async fn request_piece(&self, to: Uri, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
         let chan = self.state.connect(to).await;
         let mut cli = SorockClient::new(chan);
         let rep = cli
@@ -111,7 +104,7 @@ impl PeerOut for App {
         let rep = rep.into_inner();
         Ok(rep.data)
     }
-    async fn request_any_pieces(self, to: Uri, key: String) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
+    async fn request_any_pieces(&self, to: Uri, key: String) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
         let chan = self.state.connect(to).await;
         let mut cli = SorockClient::new(chan);
         let rep = cli.request_any_pieces(RequestAnyPiecesReq { key }).await?;

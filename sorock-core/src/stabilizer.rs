@@ -18,19 +18,15 @@ pub fn spawn(
     peer_out_cli: peer_out::ClientT,
     state: State,
 ) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            piece_store_cli,
-            peer_out_cli,
-            state: Arc::new(state),
-        };
-        let service = StabilizerService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        piece_store_cli,
+        peer_out_cli,
+        state,
+    };
+    let svc = StabilizerService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     StabilizerClient::new(chan)
 }
 
@@ -39,7 +35,7 @@ pub fn spawn_tick(mut stabilizer_cli: ClientT, interval: Duration) {
         let mut interval = tokio::time::interval(interval);
         loop {
             interval.tick().await;
-            stabilizer_cli.flush_queue().await.ok();
+            stabilizer_cli.flush_queue().await;
         }
     });
 }
@@ -72,18 +68,17 @@ pub enum StabilizeError {
     Failed(String),
 }
 
-#[derive(Clone)]
 struct App {
     piece_store_cli: piece_store::ClientT,
     peer_out_cli: peer_out::ClientT,
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl Stabilizer for App {
-    async fn queue_task(mut self, task: StabilizeTask) {
+    async fn queue_task(&self, task: StabilizeTask) {
         self.state.queue.write().await.insert(task);
     }
-    async fn flush_queue(mut self) {
+    async fn flush_queue(&self) {
         let this_uri = self.state.uri.clone();
 
         // Drain the current queue.
@@ -126,11 +121,11 @@ impl Stabilizer for App {
             queue.insert(x);
         }
     }
-    async fn set_new_cluster(mut self, new_cluster: ClusterMap) -> anyhow::Result<()> {
+    async fn set_new_cluster(&self, new_cluster: ClusterMap) -> anyhow::Result<()> {
         *self.state.cluster.write().await = new_cluster;
 
         // Reset the queue
-        let keys = self.piece_store_cli.keys().await??;
+        let keys = self.piece_store_cli.clone().keys().await?;
         let mut init_queue = HashSet::new();
         for key in keys {
             init_queue.insert(StabilizeTask { key });
@@ -186,7 +181,6 @@ impl ExecStabilize {
                 let data = piece_store_cli
                     .get_piece(loc.clone())
                     .await
-                    .unwrap()
                     .map_err(|_| SendPieceError::Failed)?;
                 if let Some(data) = data {
                     // eprintln!("found send-piece some");
@@ -202,10 +196,9 @@ impl ExecStabilize {
                                     data: Some(data.into()),
                                 },
                             )
-                            .await
-                            .unwrap()?;
+                            .await?;
 
-                        piece_store_cli.delete_piece(loc).await.unwrap().ok();
+                        piece_store_cli.delete_piece(loc).await.ok();
 
                         Ok(())
                     } else {
@@ -222,8 +215,7 @@ impl ExecStabilize {
                                 data: None,
                             },
                         )
-                        .await
-                        .unwrap()?;
+                        .await?;
 
                     Ok(())
                 }

@@ -13,18 +13,14 @@ trait IOFront {
 define_client!(IOFront);
 
 pub fn spawn(peer_out_cli: peer_out::ClientT, state: State) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            peer_out_cli,
-            state: Arc::new(state),
-        };
-        let service = IOFrontService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        peer_out_cli,
+        state,
+    };
+    let svc = IOFrontService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     IOFrontClient::new(chan)
 }
 
@@ -39,14 +35,13 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 struct App {
     peer_out_cli: peer_out::ClientT,
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl IOFront for App {
-    async fn create(self, key: String, value: Bytes) -> anyhow::Result<()> {
+    async fn create(&self, key: String, value: Bytes) -> anyhow::Result<()> {
         use reed_solomon_erasure::galois_8::ReedSolomon;
 
         let plen = value.len() / K;
@@ -126,7 +121,7 @@ impl IOFront for App {
         }
         Ok(())
     }
-    async fn read(self, key: String) -> anyhow::Result<Bytes> {
+    async fn read(&self, key: String) -> anyhow::Result<Bytes> {
         let peer_out_cli = self.peer_out_cli.clone();
         let cluster = self.state.cluster.read().await.clone();
         let rebuild = rebuild::Rebuild {
@@ -143,7 +138,7 @@ impl IOFront for App {
         }
         return Ok(merged.freeze());
     }
-    async fn sanity_check(self, key: String) -> anyhow::Result<usize> {
+    async fn sanity_check(&self, key: String) -> anyhow::Result<usize> {
         let cluster = self.state.cluster.read().await.clone();
         let holders = cluster.compute_holders(key.clone(), N);
         let mut futs = vec![];
@@ -159,7 +154,7 @@ impl IOFront for App {
                         index: i as u8,
                     };
                     let fut = async move {
-                        let found = peer_out_cli.piece_exists(holder, loc).await.unwrap()?;
+                        let found = peer_out_cli.piece_exists(holder, loc).await?;
                         Ok::<bool, anyhow::Error>(found)
                     };
                     let fut = tokio::time::timeout(std::time::Duration::from_secs(5), fut);
@@ -187,7 +182,7 @@ impl IOFront for App {
         let n_lost = n_should_found - n_found;
         Ok(n_lost)
     }
-    async fn set_new_cluster(self, cluster: ClusterMap) {
+    async fn set_new_cluster(&self, cluster: ClusterMap) {
         *self.state.cluster.write().await = cluster;
     }
 }

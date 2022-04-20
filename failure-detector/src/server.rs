@@ -25,7 +25,7 @@ impl Fd for Server {
         let suspect = req.suspect_uri;
         let suspect: Uri = suspect.parse().unwrap();
         let mut peer_out_cli = self.peer_out_cli.clone();
-        let ok = peer_out_cli.ping1(suspect).await.unwrap();
+        let ok = peer_out_cli.ping1(suspect).await;
         let rep = Ping2Rep { ok };
         Ok(tonic::Response::new(rep))
     }

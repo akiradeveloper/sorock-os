@@ -9,17 +9,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub fn spawn(state: State) -> piece_store::ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            state: state.into(),
-        };
-        let service = piece_store::PieceStoreService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App { state };
+    let svc = piece_store::PieceStoreService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     piece_store::PieceStoreClient::new(chan)
 }
 
@@ -66,13 +60,12 @@ struct Rec {
 struct Key {
     key: String,
 }
-#[derive(Clone)]
 struct App {
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
-    async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
+    async fn get_pieces(&self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
         let q = "select idx, data from sorockdb where key = $1";
         let recs = sqlx::query_as::<_, Rec>(q)
             .bind(key)
@@ -84,7 +77,7 @@ impl piece_store::PieceStore for App {
         }
         Ok(out)
     }
-    async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
+    async fn get_piece(&self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
         let q = "select idx, data from sorockdb where key = $1 and idx = $2";
         let rec = sqlx::query_as::<_, Rec>(q)
             .bind(loc.key)
@@ -96,7 +89,7 @@ impl piece_store::PieceStore for App {
             Some(rec) => Ok(Some(rec.data)),
         }
     }
-    async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
+    async fn piece_exists(&self, loc: PieceLocator) -> anyhow::Result<bool> {
         let q = "select count(*) from sorockdb where key = $1 and idx = $2";
         let rec: (i32,) = sqlx::query_as(q)
             .bind(loc.key)
@@ -105,7 +98,7 @@ impl piece_store::PieceStore for App {
             .await?;
         Ok(rec.0 > 0)
     }
-    async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
+    async fn put_piece(&self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
         let q = "insert into sorockdb (key, idx, data) values ($1, $2, $3)";
         sqlx::query(q)
             .bind(loc.key)
@@ -115,7 +108,7 @@ impl piece_store::PieceStore for App {
             .await?;
         Ok(())
     }
-    async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
+    async fn delete_piece(&self, loc: PieceLocator) -> anyhow::Result<()> {
         let q = "delete from sorockdb where key = $1 and idx = $2";
         sqlx::query(q)
             .bind(loc.key)
@@ -124,7 +117,7 @@ impl piece_store::PieceStore for App {
             .await?;
         Ok(())
     }
-    async fn keys(self) -> anyhow::Result<Vec<String>> {
+    async fn keys(&self) -> anyhow::Result<Vec<String>> {
         let q = "select key from sorockdb";
         let keys = sqlx::query_as::<_, Key>(q)
             .fetch_all(&self.state.db_pool)
