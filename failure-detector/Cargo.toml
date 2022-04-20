@@ -9,7 +9,7 @@ edition = "2021"
 tonic = "0.7"
 prost = "0.10"
 tokio = { version = "1", features = ["full"] }
-norpc = { version = "0.7", features = ["runtime"] }
+norpc = { git = "https://github.com/akiradeveloper/norpc", features = ["runtime"] }
 paste = "1"
 rand = "0.8"
 futures = "0.3"

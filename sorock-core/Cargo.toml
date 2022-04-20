@@ -17,7 +17,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 futures = "0.3"
 anyhow = "1"
-norpc = { version = "0.7", features = ["runtime"] }
+norpc = { git = "https://github.com/akiradeveloper/norpc", features = ["runtime"] }
 asura = { git = "https://github.com/akiradeveloper/asura" }
 paste = "1"
 bincode = "1.3"
