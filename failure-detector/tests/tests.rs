@@ -98,14 +98,10 @@ async fn test_failure_detector() -> anyhow::Result<()> {
 }
 
 fn spawn(app: App) -> app_out::ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let service = app_out::AppOutService::new(app);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = app_out::AppOutService::new(app);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     app_out::AppOutClient::new(chan)
 }
 #[derive(Clone)]
@@ -121,7 +117,7 @@ impl App {
 }
 #[norpc::async_trait]
 impl app_out::AppOut for App {
-    async fn notify_failure(self, calprit: Uri) -> anyhow::Result<()> {
+    async fn notify_failure(&self, calprit: Uri) -> anyhow::Result<()> {
         self.q.write().unwrap().insert(calprit);
         Ok(())
     }

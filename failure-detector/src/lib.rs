@@ -6,12 +6,11 @@
 macro_rules! define_client {
     ($name: ident) => {
         paste::paste! {
-            pub type ClientT = [<$name Client>]<norpc::runtime::send::ClientService<[<$name Request>], [<$name Response>] >>;
+            pub type ClientT = [<$name Client>]<norpc::runtime::tokio::Channel<[<$name Request>], [<$name Response>] >>;
         }
     };
 }
 
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use tonic::transport::Uri;
 

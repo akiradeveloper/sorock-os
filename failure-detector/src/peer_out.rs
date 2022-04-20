@@ -11,17 +11,13 @@ trait PeerOut {
 define_client!(PeerOut);
 
 pub fn spawn(state: State) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            state: state.into(),
-        };
-        let service = PeerOutService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        state: state.into(),
+    };
+    let svc = PeerOutService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     PeerOutClient::new(chan)
 }
 
@@ -47,13 +43,12 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 struct App {
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl PeerOut for App {
-    async fn ping1(self, tgt: Uri) -> bool {
+    async fn ping1(&self, tgt: Uri) -> bool {
         let e = tonic::transport::Endpoint::new(tgt.clone()).unwrap();
         let connected = e.connect().await.is_ok();
         if !connected {
@@ -64,7 +59,7 @@ impl PeerOut for App {
         let req = proto_compiled::Ping1Req {};
         cli.ping1(req).await.is_ok()
     }
-    async fn ping2(self, to: Uri, tgt: Uri) -> bool {
+    async fn ping2(&self, to: Uri, tgt: Uri) -> bool {
         let e = tonic::transport::Endpoint::new(to.clone()).unwrap();
         let connected = e.connect().await.is_ok();
         if !connected {
@@ -76,7 +71,11 @@ impl PeerOut for App {
         let req = proto_compiled::Ping2Req {
             suspect_uri: tgt.to_string(),
         };
-        let rep = cli.ping2(req).await.unwrap();
+        let rep = cli.ping2(req).await;
+        if rep.is_err() {
+            return false;
+        }
+        let rep = rep.unwrap();
         let proto_compiled::Ping2Rep { ok } = rep.into_inner();
         ok
     }

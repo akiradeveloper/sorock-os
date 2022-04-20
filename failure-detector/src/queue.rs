@@ -15,19 +15,15 @@ pub fn spawn(
     app_out_cli: app_out::ClientT,
     state: State,
 ) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            peer_out_cli,
-            app_out_cli,
-            state: state.into(),
-        };
-        let service = QueueService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        peer_out_cli,
+        app_out_cli,
+        state: state.into(),
+    };
+    let svc = QueueService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     QueueClient::new(chan)
 }
 
@@ -46,21 +42,20 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 pub struct App {
-    state: Arc<State>,
+    state: State,
     peer_out_cli: peer_out::ClientT,
     app_out_cli: app_out::ClientT,
 }
 #[norpc::async_trait]
 impl Queue for App {
-    async fn queue_suspect(self, suspect: Uri) {
+    async fn queue_suspect(&self, suspect: Uri) {
         self.state.queue.write().await.insert(suspect);
     }
-    async fn set_new_cluster(self, cluster: HashSet<Uri>) {
+    async fn set_new_cluster(&self, cluster: HashSet<Uri>) {
         *self.state.cluster.write().await = cluster;
     }
-    async fn run_once(self) -> anyhow::Result<()> {
+    async fn run_once(&self) -> anyhow::Result<()> {
         let mut writer = self.state.queue.write().await;
         let cur_list = writer.clone();
         *writer = HashSet::new();
@@ -79,7 +74,7 @@ impl Queue for App {
             }
 
             tokio::spawn(async move {
-                let ok1 = peer_out_cli.ping1(suspect.clone()).await.unwrap();
+                let ok1 = peer_out_cli.ping1(suspect.clone()).await;
                 if !ok1 {
                     let mut futs = vec![];
                     for proxy in ping2list {
@@ -93,7 +88,7 @@ impl Queue for App {
                     let mut ok2 = false;
                     while let Some(ping2rep) = buffered.next().await {
                         match ping2rep {
-                            Ok(true) => {
+                            true => {
                                 ok2 = true;
                                 break;
                             }
@@ -102,7 +97,7 @@ impl Queue for App {
                     }
                     if !ok2 {
                         let culprit = suspect;
-                        app_out_cli.notify_failure(culprit).await.unwrap().unwrap();
+                        app_out_cli.notify_failure(culprit).await.unwrap();
                     }
                 }
             });

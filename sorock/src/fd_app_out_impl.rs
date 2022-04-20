@@ -4,17 +4,13 @@ use tonic::transport::{Channel, Uri};
 use FD::app_out as M;
 
 pub fn spawn(state: State) -> M::ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            state: state.into(),
-        };
-        let service = M::AppOutService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        state: state.into(),
+    };
+    let svc = M::AppOutService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     M::AppOutClient::new(chan)
 }
 
@@ -36,7 +32,7 @@ struct App {
 
 #[norpc::async_trait]
 impl M::AppOut for App {
-    async fn notify_failure(mut self, culprit: Uri) -> anyhow::Result<()> {
+    async fn notify_failure(&self, culprit: Uri) -> anyhow::Result<()> {
         eprintln!("{} is failed.", culprit);
 
         let mut cli1 =

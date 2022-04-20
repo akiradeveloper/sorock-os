@@ -21,20 +21,16 @@ pub fn spawn(
     stabilizer_cli: stabilizer::ClientT,
     state: State,
 ) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            piece_store_cli,
-            peer_out_cli,
-            stabilizer_cli,
-            state: state.into(),
-        };
-        let service = RebuildQueueService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        piece_store_cli,
+        peer_out_cli,
+        stabilizer_cli,
+        state,
+    };
+    let svc = RebuildQueueService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     RebuildQueueClient::new(chan)
 }
 
@@ -43,7 +39,7 @@ pub fn spawn_tick(mut rebuild_queue_cli: ClientT, interval: Duration) {
         let mut interval = tokio::time::interval(interval);
         loop {
             interval.tick().await;
-            rebuild_queue_cli.flush_queue().await.ok();
+            rebuild_queue_cli.flush_queue().await;
         }
     });
 }
@@ -65,16 +61,15 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 struct App {
     piece_store_cli: piece_store::ClientT,
     peer_out_cli: peer_out::ClientT,
     stabilizer_cli: stabilizer::ClientT,
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl RebuildQueue for App {
-    async fn flush_queue(self) {
+    async fn flush_queue(&self) {
         let cur_queue: Vec<RebuildTask> = self.state.queue.write().await.drain().collect();
         // eprintln!("flush_queue: len = {}", cur_queue.len());
 
@@ -112,10 +107,10 @@ impl RebuildQueue for App {
             queue.insert(x);
         }
     }
-    async fn set_new_cluster(self, cluster: ClusterMap) {
+    async fn set_new_cluster(&self, cluster: ClusterMap) {
         *self.state.cluster.write().await = cluster;
     }
-    async fn queue_task(self, task: RebuildTask) {
+    async fn queue_task(&self, task: RebuildTask) {
         self.state.queue.write().await.insert(task);
     }
 }
@@ -138,7 +133,6 @@ impl ExecRebuild {
             .piece_store_cli
             .piece_exists(loc.clone())
             .await
-            .unwrap()
             .map_err(|_| RebuildError::Failed(loc.clone()));
         match check_exists? {
             false => {
@@ -163,13 +157,11 @@ impl ExecRebuild {
                 self.piece_store_cli
                     .put_piece(loc.clone(), piece_data.into())
                     .await
-                    .unwrap()
                     .map_err(|_| RebuildError::Failed(loc.clone()))?;
 
                 self.stabilizer_cli
                     .queue_task(StabilizeTask { key: loc.key })
-                    .await
-                    .unwrap();
+                    .await;
 
                 Ok(())
             }

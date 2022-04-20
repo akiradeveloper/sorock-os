@@ -9,18 +9,14 @@ trait Reporter {
 define_client!(Reporter);
 
 pub fn spawn(queue_cli: queue::ClientT, state: State) -> ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            queue_cli,
-            state: state.into(),
-        };
-        let service = ReporterService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {
+        queue_cli,
+        state: state.into(),
+    };
+    let svc = ReporterService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     ReporterClient::new(chan)
 }
 
@@ -37,14 +33,13 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 struct App {
     queue_cli: queue::ClientT,
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl Reporter for App {
-    async fn run_once(mut self) -> anyhow::Result<()> {
+    async fn run_once(&self) -> anyhow::Result<()> {
         let mut candidates = vec![];
         let all = self.state.cluster.read().await.clone();
         for x in all {
@@ -58,12 +53,12 @@ impl Reporter for App {
             let k = rand::random::<usize>() % n;
             let suspect = candidates.swap_remove(k);
             // dbg!(&suspect);
-            self.queue_cli.queue_suspect(suspect).await.unwrap();
+            self.queue_cli.clone().queue_suspect(suspect).await;
         }
 
         Ok(())
     }
-    async fn set_new_cluster(self, cluster: HashSet<Uri>) {
+    async fn set_new_cluster(&self, cluster: HashSet<Uri>) {
         *self.state.cluster.write().await = cluster;
     }
 }

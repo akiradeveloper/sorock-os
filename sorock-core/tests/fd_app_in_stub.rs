@@ -2,23 +2,18 @@ use failure_detector::app_in as M;
 use lol_core::Uri;
 use std::collections::HashSet;
 
-#[derive(Clone)]
 struct App;
 #[norpc::async_trait]
 impl M::AppIn for App {
-    async fn set_new_cluster(mut self, cluster: HashSet<Uri>) -> anyhow::Result<()> {
+    async fn set_new_cluster(&self, cluster: HashSet<Uri>) -> anyhow::Result<()> {
         Ok(())
     }
 }
 pub fn spawn() -> M::ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {};
-        let service = M::AppInService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App {};
+    let svc = M::AppInService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     M::AppInClient::new(chan)
 }

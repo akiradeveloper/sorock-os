@@ -6,17 +6,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub fn spawn(state: State) -> piece_store::ClientT {
-    use norpc::runtime::send::*;
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    tokio::spawn(async {
-        let svc = App {
-            state: Arc::new(state),
-        };
-        let service = piece_store::PieceStoreService::new(svc);
-        let server = ServerExecutor::new(rx, service);
-        server.serve().await
-    });
-    let chan = ClientService::new(tx);
+    use norpc::runtime::tokio::*;
+    let svc = App { state };
+    let svc = piece_store::PieceStoreService::new(svc);
+    let (chan, server) = ServerBuilder::new(svc).build();
+    tokio::spawn(server.serve());
     piece_store::PieceStoreClient::new(chan)
 }
 
@@ -110,13 +104,12 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 struct App {
-    state: Arc<State>,
+    state: State,
 }
 #[norpc::async_trait]
 impl piece_store::PieceStore for App {
-    async fn get_pieces(self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
+    async fn get_pieces(&self, key: String, n: u8) -> anyhow::Result<Vec<(u8, Vec<u8>)>> {
         let pieces = self.state.get_pieces(key, n).await;
         let mut out = vec![];
         for (i, data) in pieces {
@@ -126,7 +119,7 @@ impl piece_store::PieceStore for App {
         }
         Ok(out)
     }
-    async fn get_piece(self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
+    async fn get_piece(&self, loc: PieceLocator) -> anyhow::Result<Option<Vec<u8>>> {
         let buf = self.state.get_piece(loc).await;
         let buf = buf.map(|buf| {
             let mut out = vec![];
@@ -135,18 +128,18 @@ impl piece_store::PieceStore for App {
         });
         Ok(buf)
     }
-    async fn piece_exists(self, loc: PieceLocator) -> anyhow::Result<bool> {
+    async fn piece_exists(&self, loc: PieceLocator) -> anyhow::Result<bool> {
         Ok(self.state.piece_exists(loc).await)
     }
-    async fn put_piece(self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
+    async fn put_piece(&self, loc: PieceLocator, data: Bytes) -> anyhow::Result<()> {
         self.state.put_piece(loc, data).await;
         Ok(())
     }
-    async fn delete_piece(self, loc: PieceLocator) -> anyhow::Result<()> {
+    async fn delete_piece(&self, loc: PieceLocator) -> anyhow::Result<()> {
         self.state.delete_piece(loc).await;
         Ok(())
     }
-    async fn keys(self) -> anyhow::Result<Vec<String>> {
+    async fn keys(&self) -> anyhow::Result<Vec<String>> {
         let out = self.state.keys().await;
         Ok(out)
     }
